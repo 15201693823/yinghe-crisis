@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星贸纪元：荧河危机</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            width: 960px;
+            height: 540px;
+            border: 2px solid #00ffa3;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 255, 163, 0.3);
+        }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <script src="src/data/npcs.js"></script>
+    <script src="src/data/commodities.js"></script>
+    <script src="src/systems/CozeBridge.js"></script>
+    <script src="src/systems/StorySystem.js"></script>
+    <script src="src/systems/DialogueSystem.js"></script>
+    <script src="src/systems/RelationshipSystem.js"></script>
+    <script src="src/scenes/BootScene.js"></script>
+    <script src="src/scenes/MenuScene.js"></script>
+    <script src="src/scenes/HubScene.js"></script>
+    <script src="src/scenes/GovernorScene.js"></script>
+    <script src="src/scenes/MiningScene.js"></script>
+    <script src="src/scenes/PortScene.js"></script>
+    <script src="src/scenes/BlackMarketScene.js"></script>
+    <script src="src/main.js"></script>
+</body>
+</html>
