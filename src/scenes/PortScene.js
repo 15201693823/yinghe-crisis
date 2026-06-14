@@ -84,6 +84,16 @@ class PortScene extends Phaser.Scene {
             fontSize: '12px', fill: '#ffd93d', fontFamily: 'Microsoft YaHei'
         }).setDepth(50);
 
+        // ======== 决策指示器 ========
+        this.decisionIndicator = this.add.text(width - 50, 10, '⚖️', {
+            fontSize: '18px', fontFamily: 'Microsoft YaHei',
+            backgroundColor: '#0a0a1eCC', padding: { x: 8, y: 4 }
+        }).setDepth(50).setInteractive({ useHandCursor: true });
+        this.decisionIndicator.setVisible(false);
+        this.decisionIndicator.on('pointerdown', () => this.checkAndShowDecision());
+        this.decisionBlinking = false;
+        this.pKey = this.input.keyboard.addKey('P');
+
         this.dialogueContainer = createEnhancedDialogue(this, 'port-chat', 0x7b8ea0);
         this.handleSendDialogue = async () => {
             const el = document.getElementById('port-chat');
@@ -234,6 +244,8 @@ class PortScene extends Phaser.Scene {
     makeDecision(decisionId, choiceId) {
         const result = window.GAME_STATE.story.makeDecision(decisionId, choiceId);
         if (result.success) {
+            window.audioManager?.storyEvent();
+            
             if (this.decisionContainer) {
                 this.decisionContainer.destroy();
                 this.decisionContainer = null;
@@ -282,6 +294,24 @@ class PortScene extends Phaser.Scene {
         if (vx !== 0 && vy !== 0) { vx *= 0.707; vy *= 0.707; }
         this.player.setVelocity(vx, vy);
 
+        // ======== 更新决策指示器 ========
+        if (!this.decisionBlinking && window.GAME_STATE.story?.getAvailableDecision()) {
+            this.decisionBlinking = true;
+            this.decisionIndicator.setVisible(true);
+            this.tweens.add({
+                targets: this.decisionIndicator,
+                alpha: { from: 1, to: 0.3 },
+                duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+            });
+            this.decisionIndicator.setStyle({ backgroundColor: '#ffd93d88' });
+        } else if (this.decisionBlinking && !window.GAME_STATE.story?.getAvailableDecision()) {
+            this.decisionBlinking = false;
+            this.tweens.killTweensOf(this.decisionIndicator);
+            this.decisionIndicator.setAlpha(1);
+            this.decisionIndicator.setVisible(false);
+            this.decisionIndicator.setStyle({ backgroundColor: '#0a0a1eCC' });
+        }
+
         let nearest = null, nearDist = Infinity;
         for (const [id, npc] of Object.entries(this.npcs)) {
             const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.sprite.x, npc.sprite.y);
@@ -318,5 +348,6 @@ class PortScene extends Phaser.Scene {
             if (this.areaPanel?.visible) this.areaPanel.setVisible(false);
         }
         if (Phaser.Input.Keyboard.JustDown(this.iKey)) this.areaPanel.setVisible(!this.areaPanel.visible);
+        if (Phaser.Input.Keyboard.JustDown(this.pKey)) this.checkAndShowDecision();
     }
 }

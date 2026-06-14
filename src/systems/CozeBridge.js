@@ -4,18 +4,29 @@
 
 class CozeBridge {
     constructor() {
-        this.botId = '';        // 填入你的Coze Bot ID
-        this.apiToken = '';     // 填入你的Coze PAT Token
-        this.apiUrl = 'https://api.coze.cn/v3/chat';
-        this.userId = 'player_001';
-        this.isConnected = false;
+        // 从URL参数读取配置
+        const params = new URLSearchParams(window.location.search);
+        this.botId = params.get('bot_id') || '';
+        this.apiToken = params.get('token') || '';
+        this.proxyUrl = params.get('proxy') || '';  // 可选CORS代理
+        this.apiUrl = this.proxyUrl || 'https://api.coze.cn/v3/chat';
+        this.userId = 'player_' + Math.random().toString(36).substr(2, 8);
+        this.isConnected = !!(this.botId && this.apiToken);
+        this.conversationId = {};  // npcId -> conversation_id
+        
+        if (this.isConnected) {
+            console.log('[CozeBridge] 已配置，Bot ID:', this.botId);
+        } else {
+            console.log('[CozeBridge] 未配置，使用本地对话');
+        }
     }
 
     // ---- 配置 ----
     configure(config) {
         this.botId = config.botId || this.botId;
         this.apiToken = config.apiToken || this.apiToken;
-        this.apiUrl = config.apiUrl || this.apiUrl;
+        this.proxyUrl = config.proxyUrl || this.proxyUrl;
+        this.apiUrl = this.proxyUrl || 'https://api.coze.cn/v3/chat';
         this.isConnected = !!(this.botId && this.apiToken);
     }
 
@@ -27,8 +38,12 @@ class CozeBridge {
         }
 
         const message = JSON.stringify({ type, payload });
+        const npcId = payload.npc_id || 'unknown';
 
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
+
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
                 headers: {
@@ -39,27 +54,41 @@ class CozeBridge {
                     bot_id: this.botId,
                     user_id: this.userId,
                     stream: false,
-                    auto_save_history: false,
+                    auto_save_history: true,
+                    conversation_id: this.conversationId[npcId] || undefined,
                     additional_messages: [{
                         role: 'user',
                         content: message,
                         content_type: 'text'
                     }]
-                })
+                }),
+                signal: controller.signal
             });
 
+            clearTimeout(timeoutId);
+
             if (!response.ok) {
-                throw new Error(`API returned ${response.status}`);
+                console.warn('[CozeBridge] API返回错误:', response.status);
+                return null;
             }
 
             const data = await response.json();
             
+            // 保存conversation_id用于后续对话
+            if (data.data?.id) {
+                this.conversationId[npcId] = data.data.id;
+            }
+
             // 从Coze响应中提取JSON
             const content = this.extractContent(data);
             return this.parseJSON(content);
 
         } catch (error) {
-            console.error('[CozeBridge] API调用失败:', error);
+            if (error.name === 'AbortError') {
+                console.warn('[CozeBridge] API调用超时');
+            } else {
+                console.warn('[CozeBridge] API调用失败:', error.message);
+            }
             return null;
         }
     }
@@ -155,21 +184,29 @@ class CozeBridge {
         return null;
     }
 
-    // ---- 连接测试 ----
-    async testConnection() {
-        if (!this.isConnected) return { success: false, reason: '未配置' };
+    // ---- 连接状态检测 ----
+    async testAndConnect() {
+        if (!this.botId || !this.apiToken) {
+            console.log('[CozeBridge] 缺少bot_id或token');
+            this.isConnected = false;
+            return false;
+        }
         
         try {
             const result = await this.callAPI('dialogue', {
                 npc_id: 'ajie',
-                player_message: '测试连接',
+                player_message: '你好',
                 economy_state: '{}',
                 intimacy: 0,
-                conversation_history: ''
+                conversation_history: '[]'
             });
-            return { success: !!result, result };
+            this.isConnected = !!result;
+            console.log('[CozeBridge] 连接测试:', this.isConnected ? '成功' : '失败');
+            return this.isConnected;
         } catch (e) {
-            return { success: false, reason: e.message };
+            this.isConnected = false;
+            console.warn('[CozeBridge] 连接失败:', e.message);
+            return false;
         }
     }
 }

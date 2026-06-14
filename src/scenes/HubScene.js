@@ -141,6 +141,18 @@ class HubScene extends Phaser.Scene {
         // ======== HUD ========
         this.createHUD();
 
+        // ======== 决策指示器 ========
+        this.decisionIndicator = this.add.text(width - 50, 10, '⚖️', {
+            fontSize: '18px', fontFamily: 'Microsoft YaHei',
+            backgroundColor: '#0a0a1eCC', padding: { x: 8, y: 4 }
+        }).setDepth(50).setInteractive({ useHandCursor: true });
+        this.decisionIndicator.setVisible(false);
+        this.decisionIndicator.on('pointerdown', () => this.checkAndShowDecision());
+        this.decisionBlinking = false;
+
+        // P键打开决策
+        this.pKey = this.input.keyboard.addKey('P');
+
         // ======== 交互提示 ========
         this.interactHint = this.add.text(width / 2, height - 22, '', {
             fontSize: '12px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei',
@@ -451,6 +463,8 @@ class HubScene extends Phaser.Scene {
     makeDecision(decisionId, choiceId) {
         const result = window.GAME_STATE.story.makeDecision(decisionId, choiceId);
         if (result.success) {
+            window.audioManager?.storyEvent();
+            
             // 关闭决策面板
             if (this.decisionContainer) {
                 this.decisionContainer.destroy();
@@ -583,6 +597,16 @@ class HubScene extends Phaser.Scene {
         }
         if (window.GAME_STATE.flags.blackMarketUnlocked) content += '\n🔓 暗市街区已解锁';
 
+        // ======== 结局预览 ========
+        const ending = story.checkEnding();
+        if (ending) {
+            content += `\n\n—— 当前结局走向 ——\n`;
+            content += `🎭 ${ending.title}\n`;
+            content += `${ending.description.substring(0, 60)}...\n`;
+        } else {
+            content += `\n\n🎭 结局尚未触发（继续探索和对话）\n`;
+        }
+
         const logText = this.add.text(155, 75, content, {
             fontSize: '12px', fill: '#e0e0e0', fontFamily: 'Microsoft YaHei', lineSpacing: 6
         }).setDepth(401);
@@ -623,10 +647,29 @@ class HubScene extends Phaser.Scene {
 
         this.checkInteraction();
 
+        // ======== 更新决策指示器 ========
+        if (!this.decisionBlinking && window.GAME_STATE.story?.getAvailableDecision()) {
+            this.decisionBlinking = true;
+            this.decisionIndicator.setVisible(true);
+            this.tweens.add({
+                targets: this.decisionIndicator,
+                alpha: { from: 1, to: 0.3 },
+                duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+            });
+            this.decisionIndicator.setStyle({ backgroundColor: '#ffd93d88' });
+        } else if (this.decisionBlinking && !window.GAME_STATE.story?.getAvailableDecision()) {
+            this.decisionBlinking = false;
+            this.tweens.killTweensOf(this.decisionIndicator);
+            this.decisionIndicator.setAlpha(1);
+            this.decisionIndicator.setVisible(false);
+            this.decisionIndicator.setStyle({ backgroundColor: '#0a0a1eCC' });
+        }
+
         if (Phaser.Input.Keyboard.JustDown(this.interactKey)) this.handleInteract();
         if (Phaser.Input.Keyboard.JustDown(this.qKey)) this.showStoryLog();
         if (Phaser.Input.Keyboard.JustDown(this.iKey)) this.areaPanel.setVisible(!this.areaPanel.visible);
         if (Phaser.Input.Keyboard.JustDown(this.hKey)) this.showTutorial();
+        if (Phaser.Input.Keyboard.JustDown(this.pKey)) this.checkAndShowDecision();
         if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
             if (this.isInDialogue) this.closeDialogue();
             if (this.logContainer?.visible) this.logContainer.setVisible(false);

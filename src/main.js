@@ -84,6 +84,19 @@ game.events.on('ready', () => {
     setTimeout(() => {
         window.saveManager?.startAutoSave();
     }, 5000);
+    
+    // Coze AI连接测试（延迟确保cozeBridge已初始化）
+    setTimeout(() => {
+        if (window.cozeBridge) {
+            window.cozeBridge.testAndConnect().then(connected => {
+                if (connected) {
+                    console.log('✅ AI NPC对话已启用');
+                } else {
+                    console.log('ℹ️ 使用本地对话（AI未连接）');
+                }
+            });
+        }
+    }, 1000);
 });
 
 // ---- 页面关闭前存档 ----
