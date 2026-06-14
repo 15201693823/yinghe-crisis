@@ -122,7 +122,7 @@ class BootScene extends Phaser.Scene {
 }
 
 // ============================================================
-// 增强版对话UI工厂（所有场景共用）
+// 增强版对话UI工厂（所有场景共用）- 增强版
 // ============================================================
 window.createEnhancedDialogue = function(scene, inputId, accentColor) {
     const { width, height } = scene.cameras.main;
@@ -206,17 +206,30 @@ window.createEnhancedDialogue = function(scene, inputId, accentColor) {
     inputBg.strokeRoundedRect(chatX - 4, inputY, chatW + 4, 36, 6);
     container.add(inputBg);
 
-    scene.dlgInput = scene.add.dom(chatX + 4, inputY + 8).createFromHTML(
-        `<input type="text" id="${inputId}" placeholder="输入消息与NPC对话…（按Enter发送）" style="width:${chatW - 80}px;height:28px;background:transparent;border:none;color:#ffffff;font-size:13px;font-family:Microsoft YaHei;outline:none;">`
-    ).setDepth(202);
+    // 创建输入框
+    const inputEl = document.createElement('input');
+    inputEl.type = 'text';
+    inputEl.id = inputId;
+    inputEl.placeholder = '输入消息与NPC对话…';
+    inputEl.style.cssText = `width:${chatW - 90}px;height:28px;background:transparent;border:none;color:#ffffff;font-size:13px;font-family:Microsoft YaHei;outline:none;`;
+
+    scene.dlgInput = scene.add.dom(chatX + 4, inputY + 8).createFromHTML(inputEl.outerHTML);
     container.add(scene.dlgInput);
 
+    // 发送按钮 - 鼠标点击
     const sendBtn = scene.add.text(chatX + chatW - 72, inputY + 4, '发 送', {
         fontSize: '12px', fill: '#0a0a1a', fontFamily: 'Microsoft YaHei', fontStyle: 'bold',
         backgroundColor: '#' + accentColor.toString(16).padStart(6, '0'), padding: { x: 14, y: 6 }
     }).setInteractive({ useHandCursor: true }).setDepth(202);
     container.add(sendBtn);
+    
+    // 添加 touchstart 支持到发送按钮
+    sendBtn.on('touchstart', (pointer) => {
+        pointer.event.preventDefault();
+        scene.handleSendDialogue?.();
+    });
 
+    // 关闭按钮
     const closeBtn = scene.add.text(panelX + panelW - 30, panelY + 8, '✕', {
         fontSize: '16px', fill: '#ff6b35', fontFamily: 'Microsoft YaHei'
     }).setInteractive({ useHandCursor: true }).setDepth(201);
@@ -235,6 +248,13 @@ window.createEnhancedDialogue = function(scene, inputId, accentColor) {
             if (inputEl) { inputEl.value = action; }
             scene.handleSendDialogue?.();
         });
+        // 添加 touchstart 支持
+        btn.on('touchstart', (pointer) => {
+            pointer.event.preventDefault();
+            const inputEl = document.getElementById(inputId);
+            if (inputEl) { inputEl.value = action; }
+            scene.handleSendDialogue?.();
+        });
         container.add(btn);
         scene.dlgQuickBtns.push(btn);
     });
@@ -242,6 +262,11 @@ window.createEnhancedDialogue = function(scene, inputId, accentColor) {
     // ---- 事件绑定 ----
     sendBtn.on('pointerdown', () => scene.handleSendDialogue?.());
     closeBtn.on('pointerdown', () => {
+        container.setVisible(false);
+        scene.isInDialogue = false;
+    });
+    closeBtn.on('touchstart', (pointer) => {
+        pointer.event.preventDefault();
         container.setVisible(false);
         scene.isInDialogue = false;
     });

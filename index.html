@@ -2,21 +2,35 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
     <title>星贸纪元：荧河危机</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            overscroll-behavior: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
         body {
             background: #0a0a1a;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            width: 100vw;
+            height: 100vh;
             font-family: 'Microsoft YaHei', sans-serif;
-            overflow: hidden;
             touch-action: none;
             -webkit-user-select: none;
             user-select: none;
+            -webkit-touch-callout: none;
         }
         #game-container {
             position: relative;
@@ -24,12 +38,23 @@
             height: 540px;
             max-width: 100vw;
             max-height: 100vh;
+            aspect-ratio: 16 / 9;
             border: 2px solid #00ffa3;
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 0 30px rgba(0, 255, 163, 0.3);
         }
-        canvas { display: block; touch-action: none; }
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+        /* 确保输入框在移动端正常工作 */
+        input, textarea, select {
+            font-size: 16px !important;
+            -webkit-text-size-adjust: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+        }
     </style>
 </head>
 <body>

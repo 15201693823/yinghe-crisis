@@ -13,56 +13,119 @@ class MenuScene extends Phaser.Scene {
 
         // ======== 标题背景图 ========
         if (this.textures.exists('title_screen')) {
-            this.add.image(width / 2, height / 2, 'title_screen')
+            const bgImage = this.add.image(width / 2, height / 2, 'title_screen')
                 .setDisplaySize(width, height).setDepth(0);
-            // 暗化叠层（让按钮更清晰）
-            const darkOverlay = this.add.graphics().setDepth(1);
-            darkOverlay.fillStyle(0x000000, 0.25);
-            darkOverlay.fillRect(0, 0, width, height);
-            // 底部渐变（按钮区域更清晰）
-            darkOverlay.fillGradientStyle(0, 0, 0x000000, 0x000000, 0, 0, 0.7, 0.7);
-            darkOverlay.fillRect(0, height * 0.55, width, height * 0.45);
+            
+            // 顶部渐变遮罩（让标题文字更清晰）
+            const topOverlay = this.add.graphics().setDepth(1);
+            topOverlay.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.75, 0.75, 0, 0);
+            topOverlay.fillRect(0, 0, width, height * 0.45);
+            
+            // 底部渐变遮罩（让按钮更清晰）
+            const bottomOverlay = this.add.graphics().setDepth(1);
+            bottomOverlay.fillGradientStyle(0, 0, 0x000000, 0x000000, 0, 0, 0.8, 0.8);
+            bottomOverlay.fillRect(0, height * 0.55, width, height * 0.45);
+            
+            // 中间微调遮罩（让中间过渡更自然）
+            const midOverlay = this.add.graphics().setDepth(1);
+            midOverlay.fillStyle(0x000000, 0.15);
+            midOverlay.fillRect(0, height * 0.4, width, height * 0.2);
         } else {
             this.createStarfield();
         }
 
-        // ======== 标题文字（叠加在图片上） ========
-        // 仅当无标题图时显示
-        if (!this.textures.exists('title_screen')) {
-            const title = this.add.text(width / 2, height * 0.22, '星贸纪元', {
-                fontSize: '52px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei', fontStyle: 'bold',
-                stroke: '#0a0a1a', strokeThickness: 6
-            }).setOrigin(0.5).setDepth(10);
+        // ======== 游戏标题（无论有无背景图都显示） ========
+        // 主标题：星贸纪元
+        const titleShadow = this.add.text(width / 2 + 3, height * 0.18 + 3, '星贸纪元', {
+            fontSize: '58px', fill: '#000000', fontFamily: 'Microsoft YaHei', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 8
+        }).setOrigin(0.5).setDepth(15).setAlpha(0.5);
+        
+        const title = this.add.text(width / 2, height * 0.18, '星贸纪元', {
+            fontSize: '58px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei', fontStyle: 'bold',
+            stroke: '#0a0a1a', strokeThickness: 6
+        }).setOrigin(0.5).setDepth(16);
 
-            const subtitle = this.add.text(width / 2, height * 0.33, '荧河危机', {
-                fontSize: '30px', fill: '#ff6b35', fontFamily: 'Microsoft YaHei', fontStyle: 'bold',
-                stroke: '#0a0a1a', strokeThickness: 4
-            }).setOrigin(0.5).setDepth(10);
+        // 副标题：荧河危机
+        const subtitleShadow = this.add.text(width / 2 + 2, height * 0.27 + 2, '荧河危机', {
+            fontSize: '32px', fill: '#000000', fontFamily: 'Microsoft YaHei', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 6
+        }).setOrigin(0.5).setDepth(15).setAlpha(0.5);
+        
+        const subtitle = this.add.text(width / 2, height * 0.27, '荧河危机', {
+            fontSize: '32px', fill: '#ff6b35', fontFamily: 'Microsoft YaHei', fontStyle: 'bold',
+            stroke: '#0a0a1a', strokeThickness: 4
+        }).setOrigin(0.5).setDepth(16);
 
-            const tagline = this.add.text(width / 2, height * 0.42, 'AI驱动的星际贸易决策RPG', {
-                fontSize: '14px', fill: '#4ecdc4', fontFamily: 'Microsoft YaHei'
-            }).setOrigin(0.5).setDepth(10);
+        // 标语
+        const tagline = this.add.text(width / 2, height * 0.35, 'AI驱动的星际贸易决策RPG', {
+            fontSize: '14px', fill: '#4ecdc4', fontFamily: 'Microsoft YaHei'
+        }).setOrigin(0.5).setDepth(16);
 
-            this.tweens.add({
-                targets: title, y: height * 0.21, duration: 2500,
-                yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
-            });
-        }
+        // 标题浮动动画
+        this.tweens.add({
+            targets: [title, titleShadow, subtitle, subtitleShadow],
+            y: '+=6',
+            duration: 3000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
 
-        // ======== 菜单按钮 ========
-        const btnY = height * 0.68;
-        const btnStyle = {
-            fontSize: '20px', fill: '#ffffff', fontFamily: 'Microsoft YaHei', fontStyle: 'bold',
-            stroke: '#0a0a1a', strokeThickness: 3
+        // ======== 菜单按钮（居中大按钮，适合手机触摸） ========
+        const btnCenterX = width / 2;
+        const btnStartY = height * 0.48;
+        const btnWidth = 220;
+        const btnHeight = 50;
+        const btnSpacing = 60;
+        
+        // 按钮样式配置
+        const btnBgColor = 0x0a2a1a;
+        const btnBgHover = 0x00ffa3;
+        const btnBorderColor = 0x00ffa3;
+        
+        // 创建按钮背景的工厂函数
+        const createBtnBg = (y) => {
+            const bg = this.add.graphics().setDepth(9);
+            bg.fillStyle(btnBgColor, 0.9);
+            bg.fillRoundedRect(btnCenterX - btnWidth/2, y - btnHeight/2, btnWidth, btnHeight, 10);
+            bg.lineStyle(2, btnBorderColor, 0.8);
+            bg.strokeRoundedRect(btnCenterX - btnWidth/2, y - btnHeight/2, btnWidth, btnHeight, 10);
+            return bg;
         };
-        const btnStyleHover = { fill: '#00ffa3' };
-        const btnStyleOut = { fill: '#ffffff' };
-
-        // 开始游戏
-        const startBtn = this.add.text(width / 2 - 100, btnY, '▶ 开始探索', btnStyle)
-            .setOrigin(0, 0.5).setDepth(10).setInteractive({ useHandCursor: true });
-        startBtn.on('pointerover', () => startBtn.setStyle(btnStyleHover));
-        startBtn.on('pointerout', () => startBtn.setStyle(btnStyleOut));
+        
+        // 按钮文字样式
+        const btnTextStyle = {
+            fontSize: '22px', 
+            fill: '#ffffff', 
+            fontFamily: 'Microsoft YaHei', 
+            fontStyle: 'bold',
+            stroke: '#0a0a1a', 
+            strokeThickness: 3
+        };
+        
+        // 开始游戏按钮
+        const startBtnY = btnStartY;
+        const startBtnBg = createBtnBg(startBtnY);
+        const startBtn = this.add.text(btnCenterX, startBtnY, '▶ 开始探索', btnTextStyle)
+            .setOrigin(0.5).setDepth(10).setInteractive({ useHandCursor: true });
+        
+        startBtn.on('pointerover', () => {
+            startBtnBg.clear();
+            startBtnBg.fillStyle(btnBgHover, 0.3);
+            startBtnBg.fillRoundedRect(btnCenterX - btnWidth/2, startBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            startBtnBg.lineStyle(3, btnBgHover, 1);
+            startBtnBg.strokeRoundedRect(btnCenterX - btnWidth/2, startBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            startBtn.setStyle({ fill: '#00ffa3' });
+        });
+        startBtn.on('pointerout', () => {
+            startBtnBg.clear();
+            startBtnBg.fillStyle(btnBgColor, 0.9);
+            startBtnBg.fillRoundedRect(btnCenterX - btnWidth/2, startBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            startBtnBg.lineStyle(2, btnBorderColor, 0.8);
+            startBtnBg.strokeRoundedRect(btnCenterX - btnWidth/2, startBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            startBtn.setStyle({ fill: '#ffffff' });
+        });
         startBtn.on('pointerdown', () => {
             window.audioManager?.init();
             window.audioManager?.uiClick();
@@ -75,11 +138,28 @@ class MenuScene extends Phaser.Scene {
         // 继续旅程（有存档时）
         this.continueBtn = null;
         if (window.saveManager?.hasSave()) {
-            const continueBtn = this.add.text(width / 2 - 100, btnY + 42, '↻ 继续旅程', {
-                ...btnStyle, fill: '#4ecdc4'
-            }).setOrigin(0, 0.5).setDepth(10).setInteractive({ useHandCursor: true });
-            continueBtn.on('pointerover', () => continueBtn.setStyle({ fill: '#00ffa3' }));
-            continueBtn.on('pointerout', () => continueBtn.setStyle({ fill: '#4ecdc4' }));
+            const continueBtnY = btnStartY + btnSpacing;
+            const continueBtnBg = createBtnBg(continueBtnY);
+            const continueBtn = this.add.text(btnCenterX, continueBtnY, '↻ 继续旅程', {
+                ...btnTextStyle, fill: '#4ecdc4'
+            }).setOrigin(0.5).setDepth(10).setInteractive({ useHandCursor: true });
+            
+            continueBtn.on('pointerover', () => {
+                continueBtnBg.clear();
+                continueBtnBg.fillStyle(0x4ecdc4, 0.3);
+                continueBtnBg.fillRoundedRect(btnCenterX - btnWidth/2, continueBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+                continueBtnBg.lineStyle(3, 0x4ecdc4, 1);
+                continueBtnBg.strokeRoundedRect(btnCenterX - btnWidth/2, continueBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+                continueBtn.setStyle({ fill: '#00ffa3' });
+            });
+            continueBtn.on('pointerout', () => {
+                continueBtnBg.clear();
+                continueBtnBg.fillStyle(btnBgColor, 0.9);
+                continueBtnBg.fillRoundedRect(btnCenterX - btnWidth/2, continueBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+                continueBtnBg.lineStyle(2, btnBorderColor, 0.8);
+                continueBtnBg.strokeRoundedRect(btnCenterX - btnWidth/2, continueBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+                continueBtn.setStyle({ fill: '#4ecdc4' });
+            });
             continueBtn.on('pointerdown', () => {
                 window.audioManager?.init();
                 window.audioManager?.uiClick();
@@ -95,34 +175,68 @@ class MenuScene extends Phaser.Scene {
             this.continueBtn = continueBtn;
         }
 
-        // 操作说明
-        const helpBtn = this.add.text(width / 2 - 100, btnY + 84, '📖 操作说明', btnStyle)
-            .setOrigin(0, 0.5).setDepth(10).setInteractive({ useHandCursor: true });
-        helpBtn.on('pointerover', () => helpBtn.setStyle(btnStyleHover));
-        helpBtn.on('pointerout', () => helpBtn.setStyle(btnStyleOut));
+        // 操作说明按钮
+        const helpBtnY = btnStartY + (window.saveManager?.hasSave() ? btnSpacing * 2 : btnSpacing);
+        const helpBtnBg = createBtnBg(helpBtnY);
+        const helpBtn = this.add.text(btnCenterX, helpBtnY, '📖 操作说明', btnTextStyle)
+            .setOrigin(0.5).setDepth(10).setInteractive({ useHandCursor: true });
+        
+        helpBtn.on('pointerover', () => {
+            helpBtnBg.clear();
+            helpBtnBg.fillStyle(0xff6b35, 0.3);
+            helpBtnBg.fillRoundedRect(btnCenterX - btnWidth/2, helpBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            helpBtnBg.lineStyle(3, 0xff6b35, 1);
+            helpBtnBg.strokeRoundedRect(btnCenterX - btnWidth/2, helpBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            helpBtn.setStyle({ fill: '#ff6b35' });
+        });
+        helpBtn.on('pointerout', () => {
+            helpBtnBg.clear();
+            helpBtnBg.fillStyle(btnBgColor, 0.9);
+            helpBtnBg.fillRoundedRect(btnCenterX - btnWidth/2, helpBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            helpBtnBg.lineStyle(2, btnBorderColor, 0.8);
+            helpBtnBg.strokeRoundedRect(btnCenterX - btnWidth/2, helpBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            helpBtn.setStyle({ fill: '#ffffff' });
+        });
         helpBtn.on('pointerdown', () => {
             window.audioManager?.init();
             window.audioManager?.uiClick();
             this.showHelpPanel();
         });
 
-        // 关于荧河
-        const aboutBtn = this.add.text(width / 2 - 100, btnY + 126, '🌐 关于荧河', btnStyle)
-            .setOrigin(0, 0.5).setDepth(10).setInteractive({ useHandCursor: true });
-        aboutBtn.on('pointerover', () => aboutBtn.setStyle(btnStyleHover));
-        aboutBtn.on('pointerout', () => aboutBtn.setStyle(btnStyleOut));
+        // 关于荧河按钮
+        const aboutBtnY = helpBtnY + btnSpacing;
+        const aboutBtnBg = createBtnBg(aboutBtnY);
+        const aboutBtn = this.add.text(btnCenterX, aboutBtnY, '🌐 关于荧河', btnTextStyle)
+            .setOrigin(0.5).setDepth(10).setInteractive({ useHandCursor: true });
+        
+        aboutBtn.on('pointerover', () => {
+            aboutBtnBg.clear();
+            aboutBtnBg.fillStyle(0xffd700, 0.3);
+            aboutBtnBg.fillRoundedRect(btnCenterX - btnWidth/2, aboutBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            aboutBtnBg.lineStyle(3, 0xffd700, 1);
+            aboutBtnBg.strokeRoundedRect(btnCenterX - btnWidth/2, aboutBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            aboutBtn.setStyle({ fill: '#ffd700' });
+        });
+        aboutBtn.on('pointerout', () => {
+            aboutBtnBg.clear();
+            aboutBtnBg.fillStyle(btnBgColor, 0.9);
+            aboutBtnBg.fillRoundedRect(btnCenterX - btnWidth/2, aboutBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            aboutBtnBg.lineStyle(2, btnBorderColor, 0.8);
+            aboutBtnBg.strokeRoundedRect(btnCenterX - btnWidth/2, aboutBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            aboutBtn.setStyle({ fill: '#ffffff' });
+        });
         aboutBtn.on('pointerdown', () => {
             window.audioManager?.init();
             window.audioManager?.uiClick();
             this.showAboutPanel();
         });
 
-        // ======== 底部信息 ========
-        this.add.text(width / 2, height - 20, '首都经济贸易大学 · 驼灵智能体大赛 · Phaser.js + Coze AI', {
-            fontSize: '10px', fill: '#555566', fontFamily: 'Microsoft YaHei'
+        // ======== 底部版权信息（字号增大） ========
+        this.add.text(width / 2, height - 18, '首都经济贸易大学 · 驼灵智能体大赛 · Phaser.js + Coze AI', {
+            fontSize: '12px', fill: '#667788', fontFamily: 'Microsoft YaHei'
         }).setOrigin(0.5).setDepth(10);
 
-        // ======== 渐入 ========
+        // ======== 渐入动画 ========
         this.cameras.main.fadeIn(800, 10, 10, 26);
 
         // 键盘快捷键

@@ -77,7 +77,7 @@ class HubScene extends Phaser.Scene {
             }).setOrigin(0.5).setDepth(12);
 
             const intimacy = window.GAME_STATE.relationships?.getIntimacy(id) || 0;
-            this.add.text(pos.x, pos.y - 38, window.getIntimacyHearts(intimacy).substring(0, 5), {
+            this.add.text(pos.x, pos.y - 38, getIntimacyHearts(intimacy).substring(0, 5), {
                 fontSize: '7px', fill: '#ff6b9d', fontFamily: 'Microsoft YaHei'
             }).setOrigin(0.5).setDepth(12);
 
@@ -179,6 +179,9 @@ class HubScene extends Phaser.Scene {
                 this.showStoryNotification();
                 this.scene.restart();
             }
+
+            // 检查决策事件
+            this.checkAndShowDecision();
 
             // 自动存档
             window.saveManager?.save();
@@ -312,8 +315,8 @@ class HubScene extends Phaser.Scene {
         this.tutorialContainer.add(startBtn);
     }
 
-    // ======== 打开对话 ========
-    openDialogue(npcId) {
+    // ======== 打开对话（async方法）=======
+    async openDialogue(npcId) {
         this.isInDialogue = true;
         this.currentDialogueNpc = npcId;
         const npc = NPC_DATA[npcId];
@@ -336,7 +339,8 @@ class HubScene extends Phaser.Scene {
 
         this.dlgTyping.setVisible(true);
         this.dlgText.setText('');
-        const response = window.GAME_STATE.dialogue.sendMessage(npcId, '你好');
+        // 使用 await 获取对话响应
+        const response = await window.GAME_STATE.dialogue.sendMessage(npcId, '你好');
         this.dlgTyping.setVisible(false);
         this.dlgText.setText(response);
 
@@ -345,11 +349,144 @@ class HubScene extends Phaser.Scene {
         window.GAME_STATE.story.onImportantDialogue(npcId);
         this.updateHUD();
         this.showStoryNotification();
+        
+        // 对话打开后，检查是否有决策事件可触发
+        this.checkAndShowDecision();
+    }
+    
+    // ======== 检查并显示决策面板 ========
+    checkAndShowDecision() {
+        const decision = window.GAME_STATE.story.getAvailableDecision();
+        if (decision && !this.decisionPanelVisible) {
+            this.showDecisionPanel(decision);
+        }
+    }
+    
+    // ======== 显示决策面板 ========
+    showDecisionPanel(decision) {
+        this.decisionPanelVisible = true;
+        const { width, height } = this.cameras.main;
+        
+        // 创建决策面板容器
+        this.decisionContainer = this.add.container(0, 0).setDepth(250);
+        
+        // 半透明遮罩
+        const overlay = this.add.graphics();
+        overlay.fillStyle(0x000000, 0.7);
+        overlay.fillRect(0, 0, width, height);
+        this.decisionContainer.add(overlay);
+        
+        // 面板背景
+        const panelW = 500, panelH = 280;
+        const panelX = (width - panelW) / 2, panelY = (height - panelH) / 2;
+        const panelBg = this.add.graphics();
+        panelBg.fillStyle(0x0a0a1e, 0.98);
+        panelBg.fillRoundedRect(panelX, panelY, panelW, panelH, 12);
+        panelBg.lineStyle(2, 0xffd93d, 0.9);
+        panelBg.strokeRoundedRect(panelX, panelY, panelW, panelH, 12);
+        panelBg.fillStyle(0xffd93d, 0.2);
+        panelBg.fillRect(panelX + 12, panelY + 2, panelW - 24, 3);
+        this.decisionContainer.add(panelBg);
+        
+        // 标题
+        const titleText = this.add.text(width / 2, panelY + 28, decision.title, {
+            fontSize: '18px', fill: '#ffd93d', fontFamily: 'Microsoft YaHei', fontStyle: 'bold'
+        }).setOrigin(0.5);
+        this.decisionContainer.add(titleText);
+        
+        // 描述
+        const descText = this.add.text(width / 2, panelY + 60, decision.description, {
+            fontSize: '12px', fill: '#e0e0e0', fontFamily: 'Microsoft YaHei',
+            wordWrap: { width: panelW - 60 }, align: 'center'
+        }).setOrigin(0.5);
+        this.decisionContainer.add(descText);
+        
+        // 选项按钮
+        decision.choices.forEach((choice, i) => {
+            const btnY = panelY + 120 + i * 50;
+            const btn = this.add.container(panelX + 30, btnY).setDepth(251);
+            
+            const btnBg = this.add.graphics();
+            btnBg.fillStyle(0x1a1a3e, 0.9);
+            btnBg.fillRoundedRect(0, 0, panelW - 60, 42, 6);
+            btnBg.lineStyle(1, 0x4ecdc4, 0.5);
+            btnBg.strokeRoundedRect(0, 0, panelW - 60, 42, 6);
+            btn.add(btnBg);
+            
+            const btnText = this.add.text(12, 8, choice.text, {
+                fontSize: '13px', fill: '#ffffff', fontFamily: 'Microsoft YaHei', fontStyle: 'bold'
+            });
+            btn.add(btnText);
+            
+            const hintText = this.add.text(12, 24, choice.hint, {
+                fontSize: '9px', fill: '#888888', fontFamily: 'Microsoft YaHei'
+            });
+            btn.add(hintText);
+            
+            btn.setInteractive(new Phaser.Geom.Rectangle(0, 0, panelW - 60, 42), Phaser.Geom.Rectangle.Contains);
+            btn.on('pointerdown', () => {
+                window.audioManager?.uiClick();
+                this.makeDecision(decision.id, choice.id);
+            });
+            btn.on('pointerover', () => {
+                btnBg.clear();
+                btnBg.fillStyle(0x2a2a4e, 0.9);
+                btnBg.fillRoundedRect(0, 0, panelW - 60, 42, 6);
+                btnBg.lineStyle(1, 0x00ffa3, 0.8);
+                btnBg.strokeRoundedRect(0, 0, panelW - 60, 42, 6);
+            });
+            btn.on('pointerout', () => {
+                btnBg.clear();
+                btnBg.fillStyle(0x1a1a3e, 0.9);
+                btnBg.fillRoundedRect(0, 0, panelW - 60, 42, 6);
+                btnBg.lineStyle(1, 0x4ecdc4, 0.5);
+                btnBg.strokeRoundedRect(0, 0, panelW - 60, 42, 6);
+            });
+            
+            this.decisionContainer.add(btn);
+        });
+    }
+    
+    // ======== 做出决策 ========
+    makeDecision(decisionId, choiceId) {
+        const result = window.GAME_STATE.story.makeDecision(decisionId, choiceId);
+        if (result.success) {
+            // 关闭决策面板
+            if (this.decisionContainer) {
+                this.decisionContainer.destroy();
+                this.decisionContainer = null;
+            }
+            this.decisionPanelVisible = false;
+            
+            // 显示决策结果
+            this.showDecisionResult(result.message);
+            this.updateHUD();
+            window.saveManager?.save();
+        }
+    }
+    
+    // ======== 显示决策结果 ========
+    showDecisionResult(message) {
+        const { width } = this.cameras.main;
+        const resultText = this.add.text(width / 2, 180, message, {
+            fontSize: '13px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei',
+            backgroundColor: '#0a0a1eDD', padding: { x: 16, y: 10 },
+            wordWrap: { width: 500 }, align: 'center'
+        }).setOrigin(0.5).setDepth(300);
+        
+        this.tweens.add({
+            targets: resultText,
+            alpha: 0,
+            y: 160,
+            delay: 3000,
+            duration: 500,
+            onComplete: () => resultText.destroy()
+        });
     }
 
     updateDialogueInfo(npcId) {
         const intimacy = window.GAME_STATE.relationships.getIntimacy(npcId);
-        this.dlgHearts.setText(window.getIntimacyHearts(intimacy));
+        this.dlgHearts.setText(getIntimacyHearts(intimacy));
         this.dlgFactionBar.clear();
         this.dlgFactionBar.fillStyle(NPC_DATA[npcId].color, 0.6);
         this.dlgFactionBar.fillRect(56, 128, 100, 3);
@@ -398,7 +535,8 @@ class HubScene extends Phaser.Scene {
 
         const typeLabels = {
             main_quest: '📋 主线推进', crisis: '🚨 危机爆发', recovery: '🔧 事件解决',
-            secret: '🔮 隐藏发现', unlock: '🔓 区域解锁', hint: '💡 线索提示'
+            secret: '🔮 隐藏发现', unlock: '🔓 区域解锁', hint: '💡 线索提示',
+            decision: '⚖️ 关键决策'
         };
         this.notifyTitle.setText(typeLabels[last.type] || '📌 剧情更新');
         this.notifyText.setText(last.description);
@@ -434,11 +572,12 @@ class HubScene extends Phaser.Scene {
         const sat = window.GAME_STATE.factionSatisfaction;
         content += `🏛️ 商会: ${sat.merchant}  ⚒️ 矿工: ${sat.miner}  🛡️ 总督: ${sat.governor}\n\n`;
         content += `⚖️ 道德值: ${window.GAME_STATE.player.moral}\n\n`;
+        content += `📊 已做决策: ${summary.decisionCount}次\n\n`;
 
         if (story.events.length > 0) {
             content += '—— 剧情记录 ——\n';
             story.events.slice(-6).forEach(e => {
-                const typeMap = { main_quest: '📋', crisis: '🚨', recovery: '🔧', secret: '🔮', unlock: '🔓', hint: '💡' };
+                const typeMap = { main_quest: '📋', crisis: '🚨', recovery: '🔧', secret: '🔮', unlock: '🔓', hint: '💡', decision: '⚖️' };
                 content += `${typeMap[e.type] || '📌'} ${e.description.substring(0, 45)}...\n`;
             });
         }
@@ -528,7 +667,7 @@ class HubScene extends Phaser.Scene {
     handleInteract() {
         if (!this.nearestTarget) return;
         if (this.nearestTarget.type === 'npc') {
-            this.openDialogue(this.nearestTarget.id);
+            this.openDialogue(this.nearestTarget.id);  // fire-and-forget
         } else if (this.nearestTarget.type === 'portal') {
             const pd = this.portals[this.nearestTarget.id].data;
             window.audioManager?.portalActivate();

@@ -1,5 +1,5 @@
 // ============================================================
-// VirtualJoystick - 移动端虚拟摇杆
+// VirtualJoystick - 移动端虚拟摇杆（增强版）
 // ============================================================
 class VirtualJoystick {
     constructor(scene) {
@@ -27,20 +27,20 @@ class VirtualJoystick {
 
         this.container = scene.add.container(0, 0).setDepth(500).setScrollFactor(0);
 
-        // ---- 左侧摇杆 ----
+        // ---- 左侧摇杆（增大触摸区域）----
         const joyX = 80, joyY = height - 80;
-        // 底座
-        const base = scene.add.circle(joyX, joyY, 45, 0x000000, 0.25).setStrokeStyle(2, 0x00ffa3, 0.4);
+        // 底座 - 增大半径从45到55
+        const base = scene.add.circle(joyX, joyY, 55, 0x000000, 0.25).setStrokeStyle(2, 0x00ffa3, 0.4);
         this.container.add(base);
-        // 摇杆头
-        this.knob = scene.add.circle(joyX, joyY, 20, 0x00ffa3, 0.5).setStrokeStyle(1, 0xffffff, 0.3);
+        // 摇杆头 - 增大半径从20到24
+        this.knob = scene.add.circle(joyX, joyY, 24, 0x00ffa3, 0.5).setStrokeStyle(1, 0xffffff, 0.3);
         this.container.add(this.knob);
         this.joyBase = { x: joyX, y: joyY };
 
-        // 触摸事件
+        // 触摸事件 - 增大最大拖动距离从35到42
         base.setInteractive({ draggable: true });
         base.on('drag', (pointer) => {
-            const maxDist = 35;
+            const maxDist = 42;
             let dx = pointer.x - joyX;
             let dy = pointer.y - joyY;
             const dist = Math.sqrt(dx * dx + dy * dy);
@@ -74,6 +74,13 @@ class VirtualJoystick {
             if (scene.handleInteract) scene.handleInteract();
             window.audioManager?.uiClick();
         });
+        // 添加 touchstart 支持
+        eBtn.on('touchstart', (pointer) => {
+            pointer.event.preventDefault();
+            scene.interactKey?.emit?.('down');
+            if (scene.handleInteract) scene.handleInteract();
+            window.audioManager?.uiClick();
+        });
         this.container.add(eBtn);
         this.container.add(eLabel);
 
@@ -84,6 +91,11 @@ class VirtualJoystick {
         }).setOrigin(0.5);
         qBtn.setInteractive({ useHandCursor: true });
         qBtn.on('pointerdown', () => {
+            if (scene.showStoryLog) scene.showStoryLog();
+            window.audioManager?.uiClick();
+        });
+        qBtn.on('touchstart', (pointer) => {
+            pointer.event.preventDefault();
             if (scene.showStoryLog) scene.showStoryLog();
             window.audioManager?.uiClick();
         });
@@ -100,6 +112,11 @@ class VirtualJoystick {
             if (scene.areaPanel) scene.areaPanel.setVisible(!scene.areaPanel.visible);
             window.audioManager?.uiClick();
         });
+        iBtn.on('touchstart', (pointer) => {
+            pointer.event.preventDefault();
+            if (scene.areaPanel) scene.areaPanel.setVisible(!scene.areaPanel.visible);
+            window.audioManager?.uiClick();
+        });
         this.container.add(iBtn);
         this.container.add(iLabel);
 
@@ -110,6 +127,15 @@ class VirtualJoystick {
         }).setOrigin(0.5);
         escBtn.setInteractive({ useHandCursor: true });
         escBtn.on('pointerdown', () => {
+            if (scene.isInDialogue) {
+                scene.dialogueContainer?.setVisible(false);
+                scene.isInDialogue = false;
+            }
+            if (scene.areaPanel?.visible) scene.areaPanel.setVisible(false);
+            if (scene.logContainer?.visible) scene.logContainer.setVisible(false);
+        });
+        escBtn.on('touchstart', (pointer) => {
+            pointer.event.preventDefault();
             if (scene.isInDialogue) {
                 scene.dialogueContainer?.setVisible(false);
                 scene.isInDialogue = false;

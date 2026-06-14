@@ -113,12 +113,167 @@ class BlackMarketScene extends Phaser.Scene {
                 window.audioManager?.intimacyUp();
             }
             this.updateDialogueInfo(this.currentDialogueNpc);
+            this.checkAndShowDecision();
             window.saveManager?.save();
         };
 
         this.joystick = new VirtualJoystick(this);
         window.audioManager?.startAmbient('BlackMarketScene');
         this.cameras.main.fadeIn(400, 10, 10, 26);
+    }
+    
+    // ======== 打开对话（async方法）=======
+    async openDialogue(npcId) {
+        this.isInDialogue = true;
+        this.currentDialogueNpc = npcId;
+        const npc = NPC_DATA[npcId];
+        const faction = getFactionInfo(npc.faction);
+        const displayName = npcId === 'mysterious' ? '???' : npc.name;
+
+        window.audioManager?.dialogueOpen();
+
+        this.dlgName.setText(displayName);
+        this.dlgName.setColor('#' + npc.color.toString(16).padStart(6, '0'));
+        this.dlgTitle.setText(npc.title || '');
+        this.dlgFaction.setText(`${faction.icon} ${faction.name}`);
+
+        const portraitKey = `portrait_npc_${npcId}`;
+        if (this.textures.exists(portraitKey)) {
+            this.dlgPortrait.setTexture(portraitKey);
+        }
+        this.dlgPortrait.setDisplaySize(90, 90);
+
+        this.updateDialogueInfo(npcId);
+
+        this.dlgTyping.setVisible(true);
+        this.dlgText.setText('');
+        // 使用 await 获取对话响应
+        const response = await window.GAME_STATE.dialogue.sendMessage(npcId, '你好');
+        this.dlgTyping.setVisible(false);
+        this.dlgText.setText(response);
+
+        this.dialogueContainer.setVisible(true);
+        window.GAME_STATE.relationships.onDialogue(npcId);
+        window.GAME_STATE.story.onImportantDialogue(npcId);
+        
+        // 对话打开后，检查是否有决策事件可触发
+        this.checkAndShowDecision();
+    }
+    
+    // ======== 检查并显示决策面板 ========
+    checkAndShowDecision() {
+        const decision = window.GAME_STATE.story.getAvailableDecision();
+        if (decision && !this.decisionPanelVisible) {
+            this.showDecisionPanel(decision);
+        }
+    }
+    
+    // ======== 显示决策面板 ========
+    showDecisionPanel(decision) {
+        this.decisionPanelVisible = true;
+        const { width, height } = this.cameras.main;
+        
+        this.decisionContainer = this.add.container(0, 0).setDepth(250);
+        
+        const overlay = this.add.graphics();
+        overlay.fillStyle(0x000000, 0.7);
+        overlay.fillRect(0, 0, width, height);
+        this.decisionContainer.add(overlay);
+        
+        const panelW = 500, panelH = 280;
+        const panelX = (width - panelW) / 2, panelY = (height - panelH) / 2;
+        const panelBg = this.add.graphics();
+        panelBg.fillStyle(0x0a0a1e, 0.98);
+        panelBg.fillRoundedRect(panelX, panelY, panelW, panelH, 12);
+        panelBg.lineStyle(2, 0xffd93d, 0.9);
+        panelBg.strokeRoundedRect(panelX, panelY, panelW, panelH, 12);
+        panelBg.fillStyle(0xffd93d, 0.2);
+        panelBg.fillRect(panelX + 12, panelY + 2, panelW - 24, 3);
+        this.decisionContainer.add(panelBg);
+        
+        this.add.text(width / 2, panelY + 28, decision.title, {
+            fontSize: '18px', fill: '#ffd93d', fontFamily: 'Microsoft YaHei', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(251);
+        
+        this.add.text(width / 2, panelY + 60, decision.description, {
+            fontSize: '12px', fill: '#e0e0e0', fontFamily: 'Microsoft YaHei',
+            wordWrap: { width: panelW - 60 }, align: 'center'
+        }).setOrigin(0.5).setDepth(251);
+        
+        decision.choices.forEach((choice, i) => {
+            const btnY = panelY + 120 + i * 50;
+            const btn = this.add.container(panelX + 30, btnY).setDepth(251);
+            
+            const btnBg = this.add.graphics();
+            btnBg.fillStyle(0x1a1a3e, 0.9);
+            btnBg.fillRoundedRect(0, 0, panelW - 60, 42, 6);
+            btnBg.lineStyle(1, 0x4ecdc4, 0.5);
+            btnBg.strokeRoundedRect(0, 0, panelW - 60, 42, 6);
+            btn.add(btnBg);
+            
+            btn.add(this.add.text(12, 8, choice.text, {
+                fontSize: '13px', fill: '#ffffff', fontFamily: 'Microsoft YaHei', fontStyle: 'bold'
+            }));
+            
+            btn.add(this.add.text(12, 24, choice.hint, {
+                fontSize: '9px', fill: '#888888', fontFamily: 'Microsoft YaHei'
+            }));
+            
+            btn.setInteractive(new Phaser.Geom.Rectangle(0, 0, panelW - 60, 42), Phaser.Geom.Rectangle.Contains);
+            btn.on('pointerdown', () => {
+                window.audioManager?.uiClick();
+                this.makeDecision(decision.id, choice.id);
+            });
+            btn.on('pointerover', () => {
+                btnBg.clear();
+                btnBg.fillStyle(0x2a2a4e, 0.9);
+                btnBg.fillRoundedRect(0, 0, panelW - 60, 42, 6);
+                btnBg.lineStyle(1, 0x00ffa3, 0.8);
+                btnBg.strokeRoundedRect(0, 0, panelW - 60, 42, 6);
+            });
+            btn.on('pointerout', () => {
+                btnBg.clear();
+                btnBg.fillStyle(0x1a1a3e, 0.9);
+                btnBg.fillRoundedRect(0, 0, panelW - 60, 42, 6);
+                btnBg.lineStyle(1, 0x4ecdc4, 0.5);
+                btnBg.strokeRoundedRect(0, 0, panelW - 60, 42, 6);
+            });
+            
+            this.decisionContainer.add(btn);
+        });
+    }
+    
+    // ======== 做出决策 ========
+    makeDecision(decisionId, choiceId) {
+        const result = window.GAME_STATE.story.makeDecision(decisionId, choiceId);
+        if (result.success) {
+            if (this.decisionContainer) {
+                this.decisionContainer.destroy();
+                this.decisionContainer = null;
+            }
+            this.decisionPanelVisible = false;
+            this.showDecisionResult(result.message);
+            window.saveManager?.save();
+        }
+    }
+    
+    // ======== 显示决策结果 ========
+    showDecisionResult(message) {
+        const { width } = this.cameras.main;
+        const resultText = this.add.text(width / 2, 180, message, {
+            fontSize: '13px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei',
+            backgroundColor: '#0a0a1eDD', padding: { x: 16, y: 10 },
+            wordWrap: { width: 500 }, align: 'center'
+        }).setOrigin(0.5).setDepth(300);
+        
+        this.tweens.add({
+            targets: resultText,
+            alpha: 0,
+            y: 160,
+            delay: 3000,
+            duration: 500,
+            onComplete: () => resultText.destroy()
+        });
     }
 
     updateDialogueInfo(npcId) {
@@ -160,24 +315,8 @@ class BlackMarketScene extends Phaser.Scene {
 
         if (Phaser.Input.Keyboard.JustDown(this.interactKey) && this.nearestTarget) {
             if (this.nearestTarget.type === 'npc') {
-                this.isInDialogue = true; this.currentDialogueNpc = this.nearestTarget.id;
-                const npc = NPC_DATA[this.nearestTarget.id];
-                const faction = getFactionInfo(npc.faction);
-                const displayName = this.nearestTarget.id === 'mysterious' ? '???' : npc.name;
-                window.audioManager?.dialogueOpen();
-                this.dlgName.setText(displayName);
-                this.dlgName.setColor('#' + npc.color.toString(16).padStart(6, '0'));
-                this.dlgTitle.setText(npc.title); this.dlgFaction.setText(`${faction.icon} ${faction.name}`);
-                const pKey = `portrait_npc_${this.nearestTarget.id}`;
-                if (this.textures.exists(pKey)) this.dlgPortrait.setTexture(pKey);
-                this.dlgPortrait.setDisplaySize(90, 90);
-                this.updateDialogueInfo(this.nearestTarget.id);
-                this.dlgTyping.setVisible(true); this.dlgText.setText('');
-                const g = window.GAME_STATE.dialogue.sendMessage(this.nearestTarget.id, '你好');
-                this.dlgTyping.setVisible(false);
-                this.dlgText.setText(g);
-                this.dialogueContainer.setVisible(true);
-                window.GAME_STATE.relationships.onDialogue(this.nearestTarget.id);
+                // 使用 async openDialogue 方法（fire-and-forget）
+                this.openDialogue(this.nearestTarget.id);
             } else {
                 window.audioManager?.portalActivate();
                 window.audioManager?.stopAmbient();
