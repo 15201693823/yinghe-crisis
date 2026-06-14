@@ -1,5 +1,5 @@
 // ============================================================
-// 星际港口 - 船长苏雷
+// PortScene - 星际港口 — 增强版
 // ============================================================
 
 class PortScene extends Phaser.Scene {
@@ -11,49 +11,34 @@ class PortScene extends Phaser.Scene {
         this.isInDialogue = false;
 
         const { width, height } = this.cameras.main;
-        this.cameras.main.setBackgroundColor('#0a0d1a');
 
-        const bg = this.add.graphics();
-        bg.fillStyle(0x1a1a2e, 1);
-        bg.fillRoundedRect(60, 160, 840, 300, 12);
-        bg.lineStyle(2, 0x7b8ea0, 0.6);
-        bg.strokeRoundedRect(60, 160, 840, 300, 12);
+        this.add.image(width / 2, height / 2, 'bg_port').setDisplaySize(width, height).setDepth(0);
+        const vig = this.add.graphics();
+        vig.fillStyle(0x000000, 0.2); vig.fillRect(0, 0, width, 38);
 
-        // 货船轮廓
-        bg.fillStyle(0x3a3a5e, 0.8);
-        bg.fillRoundedRect(150, 250, 120, 60, 6);
-        bg.fillRoundedRect(600, 260, 120, 50, 6);
-        // 集装箱
-        bg.fillStyle(0xff6b35, 0.4); bg.fillRoundedRect(160, 255, 25, 20, 2);
-        bg.fillStyle(0x4ecdc4, 0.4); bg.fillRoundedRect(190, 255, 25, 20, 2);
-        bg.fillStyle(0xffd93d, 0.4); bg.fillRoundedRect(220, 255, 25, 20, 2);
-        bg.fillStyle(0xff6b35, 0.4); bg.fillRoundedRect(610, 265, 25, 20, 2);
-        bg.fillStyle(0x4ecdc4, 0.4); bg.fillRoundedRect(640, 265, 25, 20, 2);
-
-        // 导航台
-        bg.fillStyle(0x0d0d24, 0.9);
-        bg.fillRoundedRect(400, 200, 160, 60, 4);
-        bg.lineStyle(1, 0x7b8ea0, 0.6);
-        bg.strokeRoundedRect(400, 200, 160, 60, 4);
-        // 导航屏幕闪烁
-        bg.fillStyle(0x7b8ea0, 0.3);
-        bg.fillRect(410, 210, 140, 35);
-
-        // 装卸机器人
-        bg.fillStyle(0x7b8ea0, 0.6);
-        bg.fillRect(340, 320, 8, 30);
-        bg.fillCircle(344, 315, 6);
-        bg.fillRect(500, 330, 8, 25);
-        bg.fillCircle(504, 325, 5);
-
-        // 远处星球
-        bg.fillStyle(0x4a90d9, 0.15);
-        bg.fillCircle(800, 100, 50);
-
-        this.add.text(width / 2, 30, '荧河空间站 · 星际港口', {
-            fontSize: '18px', fill: '#7b8ea0', fontFamily: 'Microsoft YaHei',
-            backgroundColor: '#0a0d1aCC', padding: { x: 20, y: 8 }
+        this.add.text(width / 2, 48, 'C层 · 星际港口', {
+            fontSize: '16px', fill: '#7b8ea0', fontFamily: 'Microsoft YaHei', fontStyle: 'bold',
+            backgroundColor: '#0a0a1eCC', padding: { x: 16, y: 6 }
         }).setOrigin(0.5).setDepth(5);
+        this.add.text(width / 2, 70, '船舶停靠与物流枢纽', {
+            fontSize: '9px', fill: '#9bb0c0', fontFamily: 'Microsoft YaHei',
+            backgroundColor: '#0a0a1eAA', padding: { x: 10, y: 3 }
+        }).setOrigin(0.5).setDepth(5);
+
+        // 航道状态面板
+        const channelBg = this.add.graphics().setDepth(4);
+        channelBg.fillStyle(0x0a0a1e, 0.85);
+        channelBg.fillRoundedRect(10, 85, 170, 50, 6);
+        channelBg.lineStyle(1, 0x7b8ea0, 0.4);
+        channelBg.strokeRoundedRect(10, 85, 170, 50, 6);
+        this.add.text(18, 90, '📡 航道状态', {
+            fontSize: '10px', fill: '#7b8ea0', fontFamily: 'Microsoft YaHei', fontStyle: 'bold'
+        }).setDepth(5);
+        const channelStatus = window.GAME_STATE.flags.channelBroken ? '⛔ 主航道断裂' : '✅ 航道畅通';
+        const channelColor = window.GAME_STATE.flags.channelBroken ? '#ff6b35' : '#4ecdc4';
+        this.add.text(18, 108, channelStatus, {
+            fontSize: '9px', fill: channelColor, fontFamily: 'Microsoft YaHei'
+        }).setDepth(5);
 
         this.player = this.physics.add.sprite(width / 2, height * 0.6, 'player');
         this.player.setCollideWorldBounds(true).setDepth(10);
@@ -61,59 +46,139 @@ class PortScene extends Phaser.Scene {
 
         this.npcs = {};
         const cap = this.physics.add.sprite(300, 310, 'npc_captain_su').setImmovable(true).setDepth(8);
-        this.add.text(300, 286, '苏雷', { fontSize: '10px', fill: '#7b8ea0', fontFamily: 'Microsoft YaHei', backgroundColor: '#0a0d1aAA', padding: { x: 4, y: 2 } }).setOrigin(0.5).setDepth(12);
+        this.add.text(300, 286, '⚖️ 苏雷', {
+            fontSize: '10px', fill: '#7b8ea0', fontFamily: 'Microsoft YaHei',
+            backgroundColor: '#0a0a1eCC', padding: { x: 5, y: 2 }
+        }).setOrigin(0.5).setDepth(12);
+        const capIntimacy = window.GAME_STATE.relationships?.getIntimacy('captain_su') || 0;
+        this.add.text(300, 274, getIntimacyHearts(capIntimacy).substring(0, 5), {
+            fontSize: '7px', fill: '#ff6b9d', fontFamily: 'Microsoft YaHei'
+        }).setOrigin(0.5).setDepth(12);
+        this.tweens.add({ targets: cap, y: 307, duration: 2600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
         this.npcs.captain_su = { sprite: cap, data: NPC_DATA.captain_su };
 
-        this.returnPortal = this.add.sprite(480, 440, 'portal').setDepth(6);
-        this.add.text(480, 466, '返回中央大厅', { fontSize: '10px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei' }).setOrigin(0.5).setDepth(12);
-        this.tweens.add({ targets: this.returnPortal, alpha: 0.8, duration: 1500, yoyo: true, repeat: -1 });
+        this.returnPortal = this.add.sprite(480, 450, 'portal').setDepth(6);
+        this.add.text(480, 476, '⬇ 返回B层·中央大厅', {
+            fontSize: '9px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei',
+            backgroundColor: '#0a0a1eCC', padding: { x: 4, y: 2 }
+        }).setOrigin(0.5).setDepth(12);
+        this.tweens.add({ targets: this.returnPortal, alpha: { from: 0.5, to: 0.9 }, duration: 1500, yoyo: true, repeat: -1 });
+        createPortalParticles(this, 480, 450, 0x00ffa3);
+
+        this.areaPanel = createAreaInfoPanel(this, '星际港口', '船舶停靠与物流枢纽', [
+            { name: '苏雷', faction: 'neutral' }
+        ], 0x7b8ea0);
 
         this.cursors = this.input.keyboard.createCursorKeys();
         this.wasd = this.input.keyboard.addKeys('W,A,S,D');
         this.interactKey = this.input.keyboard.addKey('E');
         this.escKey = this.input.keyboard.addKey('ESC');
-        this.interactHint = this.add.text(width / 2, height - 30, '', { fontSize: '12px', fill: '#7b8ea0', fontFamily: 'Microsoft YaHei', backgroundColor: '#0a0d1aCC', padding: { x: 10, y: 4 } }).setOrigin(0.5).setDepth(100).setVisible(false);
+        this.iKey = this.input.keyboard.addKey('I');
+        this.interactHint = this.add.text(width / 2, height - 22, '', {
+            fontSize: '12px', fill: '#7b8ea0', fontFamily: 'Microsoft YaHei',
+            backgroundColor: '#0a0a1eDD', padding: { x: 10, y: 5 }
+        }).setOrigin(0.5).setDepth(100).setVisible(false);
         this.nearestTarget = null;
-        this.add.text(10, 8, `星币: ${window.GAME_STATE.player.credits}`, { fontSize: '12px', fill: '#7b8ea0', fontFamily: 'Microsoft YaHei' }).setDepth(50);
 
-        this.createSimpleDialogue();
+        this.add.text(12, 10, `💰 ${window.GAME_STATE.player.credits} SC`, {
+            fontSize: '12px', fill: '#ffd93d', fontFamily: 'Microsoft YaHei'
+        }).setDepth(50);
+
+        this.dialogueContainer = createEnhancedDialogue(this, 'port-chat', 0x7b8ea0);
+        this.handleSendDialogue = async () => {
+            const el = document.getElementById('port-chat');
+            if (!el?.value.trim()) return;
+            const msg = el.value.trim(); el.value = '';
+            this.dlgText.setText(''); this.dlgTyping.setVisible(true);
+            window.audioManager?.dialogueType();
+            await new Promise(r => setTimeout(r, 300 + Math.random() * 500));
+            const resp = await window.GAME_STATE.dialogue.sendMessage(this.currentDialogueNpc, msg);
+            this.dlgTyping.setVisible(false);
+            this.dlgText.setText(resp);
+            const old = window.GAME_STATE.relationships.getIntimacy(this.currentDialogueNpc);
+            window.GAME_STATE.relationships.onDialogue(this.currentDialogueNpc);
+            if (window.GAME_STATE.relationships.getIntimacy(this.currentDialogueNpc) > old) {
+                window.audioManager?.intimacyUp();
+            }
+            this.updateDialogueInfo(this.currentDialogueNpc);
+            window.saveManager?.save();
+        };
+
+        this.joystick = new VirtualJoystick(this);
+        window.audioManager?.startAmbient('PortScene');
         this.cameras.main.fadeIn(400, 10, 10, 26);
     }
 
-    createSimpleDialogue() {
-        const { width, height } = this.cameras.main;
-        this.dialogueOverlay = this.add.container(0, 0).setDepth(200).setVisible(false);
-        const bg = this.add.graphics(); bg.fillStyle(0x000000, 0.5); bg.fillRect(0, 0, width, height); this.dialogueOverlay.add(bg);
-        const dBg = this.add.graphics(); dBg.fillStyle(0x0a0d1a, 0.95); dBg.fillRoundedRect(80, height - 200, width - 160, 175, 10); dBg.lineStyle(2, 0x7b8ea0, 0.8); dBg.strokeRoundedRect(80, height - 200, width - 160, 175, 10); this.dialogueOverlay.add(dBg);
-        this.dlgPortrait = this.add.image(140, height - 115, 'portrait_npc_captain_su').setDisplaySize(80, 80).setDepth(201); this.dialogueOverlay.add(this.dlgPortrait);
-        const pf = this.add.graphics(); pf.lineStyle(2, 0x7b8ea0, 0.8); pf.strokeRoundedRect(98, height - 158, 84, 84, 6); this.dialogueOverlay.add(pf);
-        this.dlgName = this.add.text(195, height - 190, '', { fontSize: '14px', fill: '#7b8ea0', fontFamily: 'Microsoft YaHei', fontStyle: 'bold' }).setDepth(201); this.dialogueOverlay.add(this.dlgName);
-        this.dlgIntimacy = this.add.text(330, height - 188, '', { fontSize: '11px', fill: '#4ecdc4', fontFamily: 'Microsoft YaHei' }).setDepth(201); this.dialogueOverlay.add(this.dlgIntimacy);
-        this.dlgText = this.add.text(195, height - 165, '', { fontSize: '13px', fill: '#ffffff', fontFamily: 'Microsoft YaHei', wordWrap: { width: width - 330 } }).setDepth(201); this.dialogueOverlay.add(this.dlgText);
-        const closeBtn = this.add.text(width - 110, height - 195, '✕', { fontSize: '16px', fill: '#ff6b35' }).setInteractive({ useHandCursor: true }).setDepth(201);
-        closeBtn.on('pointerdown', () => { this.dialogueOverlay.setVisible(false); this.isInDialogue = false; }); this.dialogueOverlay.add(closeBtn);
-        this.dlgInput = this.add.dom(110, height - 55).createFromHTML('<input type="text" id="port-chat" placeholder="输入消息..." style="width:580px;height:28px;background:transparent;border:none;color:#fff;font-size:13px;font-family:Microsoft YaHei;outline:none;">').setDepth(202); this.dialogueOverlay.add(this.dlgInput);
-        const sendBtn = this.add.text(width - 140, height - 60, '发送', { fontSize: '12px', fill: '#0a0a1a', fontFamily: 'Microsoft YaHei', backgroundColor: '#7b8ea0', padding: { x: 14, y: 5 } }).setInteractive({ useHandCursor: true }).setDepth(202);
-        sendBtn.on('pointerdown', async () => { const el = document.getElementById('port-chat'); if (!el?.value.trim()) return; const msg = el.value.trim(); el.value = ''; this.dlgText.setText('...'); const r = await window.GAME_STATE.dialogue.sendMessage(this.currentNpc, msg); this.dlgText.setText(r); const intimacy = window.GAME_STATE.relationships.getIntimacy(this.currentNpc); this.dlgIntimacy.setText(`♥ 亲密度: ${intimacy}`); });
-        this.dialogueOverlay.add(sendBtn);
+    updateDialogueInfo(npcId) {
+        const intimacy = window.GAME_STATE.relationships.getIntimacy(npcId);
+        this.dlgHearts.setText(getIntimacyHearts(intimacy));
     }
 
     update() {
         if (this.isInDialogue) { this.player.setVelocity(0); return; }
         const speed = this.player.speed; let vx = 0, vy = 0;
-        if (this.cursors.left.isDown || this.wasd.A.isDown) vx = -speed; else if (this.cursors.right.isDown || this.wasd.D.isDown) vx = speed;
-        if (this.cursors.up.isDown || this.wasd.W.isDown) vy = -speed; else if (this.cursors.down.isDown || this.wasd.S.isDown) vy = speed;
-        this.player.setVelocity(vx, vy);
-        let nearest = null, nearDist = Infinity;
-        for (const [id, npc] of Object.entries(this.npcs)) { const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.sprite.x, npc.sprite.y); if (d < 60 && d < nearDist) { nearDist = d; nearest = id; } }
-        const portalDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, 480, 440);
-        if (nearest) { this.interactHint.setText(`按E与 ${NPC_DATA[nearest].name} 对话`).setVisible(true); this.nearestTarget = { type: 'npc', id: nearest }; }
-        else if (portalDist < 50) { this.interactHint.setText('按E返回中央大厅').setVisible(true); this.nearestTarget = { type: 'portal' }; }
-        else { this.interactHint.setVisible(false); this.nearestTarget = null; }
-        if (Phaser.Input.Keyboard.JustDown(this.interactKey) && this.nearestTarget) {
-            if (this.nearestTarget.type === 'npc') { this.isInDialogue = true; this.currentNpc = this.nearestTarget.id; const npc = NPC_DATA[this.nearestTarget.id]; this.dlgName.setText(npc.name); const pKey = `portrait_npc_${this.nearestTarget.id}`; if (this.textures.exists(pKey)) this.dlgPortrait.setTexture(pKey); this.dlgPortrait.setDisplaySize(80, 80); const intimacy = window.GAME_STATE.relationships.getIntimacy(this.nearestTarget.id); this.dlgIntimacy.setText(`♥ 亲密度: ${intimacy}`); this.dlgText.setText(window.GAME_STATE.dialogue.sendMessage(this.nearestTarget.id, '你好')); this.dialogueOverlay.setVisible(true); window.GAME_STATE.relationships.onDialogue(this.nearestTarget.id); }
-            else { this.cameras.main.fadeOut(400, 10, 10, 26); this.time.delayedCall(400, () => this.scene.start('HubScene')); }
+        if (this.cursors.left.isDown || this.wasd.A.isDown) vx = -speed;
+        else if (this.cursors.right.isDown || this.wasd.D.isDown) vx = speed;
+        if (this.cursors.up.isDown || this.wasd.W.isDown) vy = -speed;
+        else if (this.cursors.down.isDown || this.wasd.S.isDown) vy = speed;
+        if (this.joystick?.active) {
+            const dir = this.joystick.getDirection();
+            vx = dir.x * speed; vy = dir.y * speed;
         }
-        if (Phaser.Input.Keyboard.JustDown(this.escKey)) { this.dialogueOverlay.setVisible(false); this.isInDialogue = false; }
+        if (vx !== 0 && vy !== 0) { vx *= 0.707; vy *= 0.707; }
+        this.player.setVelocity(vx, vy);
+
+        let nearest = null, nearDist = Infinity;
+        for (const [id, npc] of Object.entries(this.npcs)) {
+            const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.sprite.x, npc.sprite.y);
+            if (d < 65 && d < nearDist) { nearDist = d; nearest = id; }
+        }
+        const portalDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, 480, 450);
+
+        if (nearest) {
+            const mood = getNpcMood(nearest);
+            this.interactHint.setText(`${mood} 按 E 与 ${NPC_DATA[nearest].name} 对话`).setVisible(true);
+            this.nearestTarget = { type: 'npc', id: nearest };
+        } else if (portalDist < 55) {
+            this.interactHint.setText('按 E 返回中央大厅').setVisible(true);
+            this.nearestTarget = { type: 'portal' };
+        } else { this.interactHint.setVisible(false); this.nearestTarget = null; }
+
+        if (Phaser.Input.Keyboard.JustDown(this.interactKey) && this.nearestTarget) {
+            if (this.nearestTarget.type === 'npc') {
+                this.isInDialogue = true; this.currentDialogueNpc = this.nearestTarget.id;
+                const npc = NPC_DATA[this.nearestTarget.id];
+                const faction = getFactionInfo(npc.faction);
+                window.audioManager?.dialogueOpen();
+                this.dlgName.setText(npc.name);
+                this.dlgName.setColor('#' + npc.color.toString(16).padStart(6, '0'));
+                this.dlgTitle.setText(npc.title); this.dlgFaction.setText(`${faction.icon} ${faction.name}`);
+                const pKey = `portrait_npc_${this.nearestTarget.id}`;
+                if (this.textures.exists(pKey)) this.dlgPortrait.setTexture(pKey);
+                this.dlgPortrait.setDisplaySize(90, 90);
+                this.updateDialogueInfo(this.nearestTarget.id);
+                this.dlgTyping.setVisible(true); this.dlgText.setText('');
+                const g = window.GAME_STATE.dialogue.sendMessage(this.nearestTarget.id, '你好');
+                this.dlgTyping.setVisible(false);
+                this.dlgText.setText(g);
+                this.dialogueContainer.setVisible(true);
+                window.GAME_STATE.relationships.onDialogue(this.nearestTarget.id);
+                window.GAME_STATE.story.onImportantDialogue(this.nearestTarget.id);
+            } else {
+                window.audioManager?.portalActivate();
+                window.audioManager?.stopAmbient();
+                window.saveManager?.save();
+                this.cameras.main.fadeOut(400, 10, 10, 26);
+                this.time.delayedCall(400, () => {
+                    window.audioManager?.sceneTransition();
+                    this.scene.start('HubScene');
+                });
+            }
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
+            if (this.isInDialogue) { this.dialogueContainer.setVisible(false); this.isInDialogue = false; }
+            if (this.areaPanel?.visible) this.areaPanel.setVisible(false);
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.iKey)) this.areaPanel.setVisible(!this.areaPanel.visible);
     }
 }

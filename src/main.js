@@ -1,5 +1,5 @@
 // ============================================================
-// 星贸纪元：荧河危机 - 主入口（精简版）
+// 星贸纪元：荧河危机 - 主入口（增强版）
 // ============================================================
 
 const config = {
@@ -54,11 +54,11 @@ window.GAME_STATE = {
 
     // 剧情flag
     flags: {
-        blackMarketUnlocked: false,  // 黑市解锁条件
+        blackMarketUnlocked: false,
         metGovernor: false,
         talkedToMiner: false,
         talkedToMerchant: false,
-        channelBroken: false,       // 航道断裂事件
+        channelBroken: false,
         channelFixed: false,
         minerStrike: false,
         merchantBlockade: false,
@@ -72,5 +72,21 @@ window.GAME_STATE = {
         inflation: '2.0%',
         tradeBalance: '+120',
         stability: '稳定'
-    }
+    },
+
+    // 存档恢复数据（从MenuScene传入）
+    _pendingRestore: null
 };
+
+// ---- 启动自动存档（游戏开始后） ----
+game.events.on('ready', () => {
+    // 延迟启动，等第一个场景加载完成
+    setTimeout(() => {
+        window.saveManager?.startAutoSave();
+    }, 5000);
+});
+
+// ---- 页面关闭前存档 ----
+window.addEventListener('beforeunload', () => {
+    window.saveManager?.save();
+});

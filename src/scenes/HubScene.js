@@ -1,329 +1,358 @@
 // ============================================================
-// HubScene - 中央大厅（核心枢纽场景）
-// 精简版：自由探索 + 故事驱动
+// HubScene - 中央大厅（核心枢纽）— 增强版
 // ============================================================
 
 class HubScene extends Phaser.Scene {
-    constructor() {
-        super({ key: 'HubScene' });
-    }
+    constructor() { super({ key: 'HubScene' }); }
 
     create() {
         window.GAME_STATE.currentScene = 'HubScene';
         window.GAME_STATE.scene = this;
+        this.isInDialogue = false;
 
         const { width, height } = this.cameras.main;
-        this.cameras.main.setBackgroundColor('#0d0d24');
 
-        this.drawScene();
-        this.createPlayer();
-        this.createNPCs();
-        this.createPortals();
-        this.setupInput();
-        this.createHUD();
-        this.createDialogueUI();
-        this.createStoryEventUI();
+        // ======== 精细背景图 ========
+        this.add.image(width / 2, height / 2, 'bg_hub').setDisplaySize(width, height).setDepth(0);
 
-        this.interactHint = this.add.text(width / 2, height - 40, '', {
-            fontSize: '13px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei',
-            backgroundColor: '#1a1a2eCC', padding: { x: 12, y: 6 }
-        }).setOrigin(0.5).setDepth(100).setVisible(false);
+        // 半透明暗角
+        const vignette = this.add.graphics();
+        vignette.fillStyle(0x000000, 0.3);
+        vignette.fillRect(0, 0, width, 36);
+        vignette.fillGradientStyle(0, 0, 0, 0, 0x000000, 0x000000, 0x000000, 0x000000, 0.3, 0.3, 0, 0);
+        vignette.fillRect(0, height - 40, width, 40);
 
-        this.cameras.main.fadeIn(500, 10, 10, 26);
-    }
-
-    // ======== 场景绘制 ========
-    drawScene() {
-        const { width, height } = this.cameras.main;
-
-        // 星空
-        const stars = this.add.graphics();
-        for (let i = 0; i < 150; i++) {
-            stars.fillStyle(0xffffff, Math.random() * 0.6 + 0.1);
-            stars.fillCircle(Phaser.Math.Between(0, width), Phaser.Math.Between(0, height), Math.random() > 0.9 ? 2 : 1);
-        }
-
-        // 中央平台
-        const pf = this.add.graphics();
-        pf.fillStyle(0x2a2a4e, 1);
-        pf.fillRoundedRect(80, 200, 800, 240, 12);
-        pf.lineStyle(2, 0x00ffa3, 0.6);
-        pf.strokeRoundedRect(80, 200, 800, 240, 12);
-
-        // 全息屏底座
-        pf.fillStyle(0x1a1a2e, 1);
-        pf.fillRoundedRect(380, 210, 200, 80, 6);
-        pf.lineStyle(1, 0x00ffa3, 0.8);
-        pf.strokeRoundedRect(380, 210, 200, 80, 6);
-
-        // 全息屏显示经济概况
-        const econ = window.GAME_STATE.economyStatus;
-        this.add.text(480, 230, `GDP: ${econ.gdp}`, { fontSize: '11px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei' }).setOrigin(0.5).setDepth(5);
-        this.add.text(480, 248, `通胀: ${econ.inflation}`, { fontSize: '10px', fill: '#4ecdc4', fontFamily: 'Microsoft YaHei' }).setOrigin(0.5).setDepth(5);
-        this.add.text(480, 266, `贸易: ${econ.tradeBalance}`, { fontSize: '10px', fill: '#ffffff', fontFamily: 'Microsoft YaHei' }).setOrigin(0.5).setDepth(5);
-
-        // 标题
-        this.add.text(width / 2, 30, '荧河空间站 · 中央大厅', {
-            fontSize: '18px', fill: '#ffffff', fontFamily: 'Microsoft YaHei',
-            backgroundColor: '#1a1a2eCC', padding: { x: 20, y: 8 }
+        // ======== 场景标题 ========
+        this.add.text(width / 2, 48, 'B层 · 中央贸易大厅', {
+            fontSize: '16px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei', fontStyle: 'bold',
+            backgroundColor: '#0a0a1eCC', padding: { x: 16, y: 6 }
         }).setOrigin(0.5).setDepth(5);
-    }
 
-    // ======== 玩家 ========
-    createPlayer() {
-        const { width, height } = this.cameras.main;
-        this.player = this.physics.add.sprite(width / 2, height * 0.6, 'player');
-        this.player.setCollideWorldBounds(true);
-        this.player.setDepth(10);
+        this.add.text(width / 2, 70, '贸易 · 信息 · 社交核心', {
+            fontSize: '9px', fill: '#4ecdc4', fontFamily: 'Microsoft YaHei',
+            backgroundColor: '#0a0a1eAA', padding: { x: 10, y: 3 }
+        }).setOrigin(0.5).setDepth(5);
+
+        // ======== 经济数据面板 ========
+        const econ = window.GAME_STATE.economyStatus;
+        const econBg = this.add.graphics().setDepth(4);
+        econBg.fillStyle(0x0a0a1e, 0.85);
+        econBg.fillRoundedRect(10, 85, 160, 65, 6);
+        econBg.lineStyle(1, 0x00ffa3, 0.4);
+        econBg.strokeRoundedRect(10, 85, 160, 65, 6);
+
+        this.add.text(18, 90, '📊 贸易资讯', {
+            fontSize: '10px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei', fontStyle: 'bold'
+        }).setDepth(5);
+        this.econText1 = this.add.text(18, 106, `⛏ 矿石价格 ↑12%`, {
+            fontSize: '9px', fill: '#ff6b35', fontFamily: 'Microsoft YaHei'
+        }).setDepth(5);
+        this.econText2 = this.add.text(18, 119, `⛽ 燃料价格 ↓5%`, {
+            fontSize: '9px', fill: '#4ecdc4', fontFamily: 'Microsoft YaHei'
+        }).setDepth(5);
+        this.econText3 = this.add.text(18, 132, `🌾 食品需求 ↑8%`, {
+            fontSize: '9px', fill: '#ffd93d', fontFamily: 'Microsoft YaHei'
+        }).setDepth(5);
+
+        // ======== 玩家 ========
+        this.player = this.physics.add.sprite(width / 2, height * 0.55, 'player');
+        this.player.setCollideWorldBounds(true).setDepth(10);
         this.player.speed = 160;
-    }
 
-    // ======== NPC ========
-    createNPCs() {
+        // ======== NPC ========
         this.npcs = {};
-        const pos = {
-            chen_boss: { x: 200, y: 320 },
-            ajie: { x: 300, y: 360 }
+        const npcPositions = {
+            chen_boss: { x: 220, y: 320 },
+            ajie: { x: 340, y: 360 }
         };
 
-        for (const [id, p] of Object.entries(pos)) {
+        for (const [id, pos] of Object.entries(npcPositions)) {
             const d = NPC_DATA[id];
-            const s = this.physics.add.sprite(p.x, p.y, `npc_${id}`).setImmovable(true).setDepth(8);
-            s.npcId = id;
+            const faction = getFactionInfo(d.faction);
+            const s = this.physics.add.sprite(pos.x, pos.y, `npc_${id}`).setImmovable(true).setDepth(8);
 
-            this.add.text(p.x, p.y - 24, d.name, {
+            this.add.text(pos.x, pos.y - 26, `${faction.icon} ${d.name}`, {
                 fontSize: '10px', fill: '#' + d.color.toString(16).padStart(6, '0'),
-                fontFamily: 'Microsoft YaHei', backgroundColor: '#0a0a1aAA', padding: { x: 4, y: 2 }
+                fontFamily: 'Microsoft YaHei', backgroundColor: '#0a0a1eCC', padding: { x: 5, y: 2 }
             }).setOrigin(0.5).setDepth(12);
+
+            const intimacy = window.GAME_STATE.relationships?.getIntimacy(id) || 0;
+            this.add.text(pos.x, pos.y - 38, window.getIntimacyHearts(intimacy).substring(0, 5), {
+                fontSize: '7px', fill: '#ff6b9d', fontFamily: 'Microsoft YaHei'
+            }).setOrigin(0.5).setDepth(12);
+
+            // NPC呼吸动画
+            this.tweens.add({
+                targets: s, y: pos.y - 3, duration: 2000 + Math.random() * 1000,
+                yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+            });
 
             this.npcs[id] = { sprite: s, data: d };
         }
-    }
 
-    // ======== 传送门 ========
-    createPortals() {
-        const { width, height } = this.cameras.main;
+        // ======== 传送门（带粒子效果） ========
         this.portals = {};
-
-        const data = [
-            { id: 'to_governor', label: '总督办公室', x: 880, y: 300, scene: 'GovernorScene', color: 0x4a90d9 },
-            { id: 'to_mining', label: '矿业营地', x: 80, y: 300, scene: 'MiningScene', color: 0xd4a574 },
-            { id: 'to_port', label: '星际港口', x: 480, y: 440, scene: 'PortScene', color: 0x7b8ea0 },
-            { id: 'to_blackmarket', label: '暗市街区', x: 480, y: 210, scene: 'BlackMarketScene', color: 0xc77dff }
+        const portalData = [
+            { id: 'to_governor', label: '🏛️ A层·行政塔楼', x: 870, y: 280, scene: 'GovernorScene', color: 0x4a90d9 },
+            { id: 'to_mining', label: '⚒️ D层·矿业营地', x: 90, y: 320, scene: 'MiningScene', color: 0xd4a574 },
+            { id: 'to_port', label: '🚀 C层·星际港口', x: 480, y: 450, scene: 'PortScene', color: 0x7b8ea0 },
+            { id: 'to_blackmarket', label: '🌑 E层·暗市街区', x: 480, y: 180, scene: 'BlackMarketScene', color: 0xc77dff }
         ];
 
-        for (const pd of data) {
+        for (const pd of portalData) {
             const isLocked = (pd.id === 'to_blackmarket' && !window.GAME_STATE.flags.blackMarketUnlocked);
-            const portal = this.add.sprite(pd.x, pd.y, 'portal').setDepth(6).setInteractive();
+            const portal = this.add.sprite(pd.x, pd.y, 'portal').setDepth(6);
 
-            const label = this.add.text(pd.x, pd.y + 26, isLocked ? '???' : pd.label, {
-                fontSize: '10px',
+            this.add.text(pd.x, pd.y + 28, isLocked ? '🔒 ???' : pd.label, {
+                fontSize: '9px',
                 fill: isLocked ? '#555555' : '#' + pd.color.toString(16).padStart(6, '0'),
-                fontFamily: 'Microsoft YaHei'
+                fontFamily: 'Microsoft YaHei', backgroundColor: '#0a0a1eCC', padding: { x: 4, y: 2 }
             }).setOrigin(0.5).setDepth(12);
 
             if (isLocked) {
-                this.add.text(pd.x, pd.y, '🔒', { fontSize: '16px' }).setOrigin(0.5).setDepth(12);
-                portal.setAlpha(0.3);
+                portal.setAlpha(0.25);
+            } else {
+                this.tweens.add({
+                    targets: portal, alpha: { from: 0.5, to: 0.9 },
+                    duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+                });
+                // 传送门粒子
+                createPortalParticles(this, pd.x, pd.y, pd.color);
             }
 
-            this.tweens.add({
-                targets: portal,
-                alpha: isLocked ? 0.3 : 0.8,
-                duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
-            });
-
-            this.portals[pd.id] = { sprite: portal, label, data: pd };
+            this.portals[pd.id] = { sprite: portal, data: pd };
         }
-    }
 
-    // ======== 输入 ========
-    setupInput() {
+        // ======== 区域信息面板 ========
+        this.areaPanel = createAreaInfoPanel(this, '中央贸易大厅', '贸易·信息·社交核心', [
+            { name: '陈老板', faction: 'merchant' },
+            { name: '阿杰', faction: 'neutral' }
+        ], 0x00ffa3);
+
+        // ======== 输入 ========
         this.cursors = this.input.keyboard.createCursorKeys();
         this.wasd = this.input.keyboard.addKeys('W,A,S,D');
         this.interactKey = this.input.keyboard.addKey('E');
         this.escKey = this.input.keyboard.addKey('ESC');
-        this.qKey = this.input.keyboard.addKey('Q');  // 打开故事日志
+        this.qKey = this.input.keyboard.addKey('Q');
+        this.iKey = this.input.keyboard.addKey('I');
+        this.hKey = this.input.keyboard.addKey('H');
+
+        // ======== HUD ========
+        this.createHUD();
+
+        // ======== 交互提示 ========
+        this.interactHint = this.add.text(width / 2, height - 22, '', {
+            fontSize: '12px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei',
+            backgroundColor: '#0a0a1eDD', padding: { x: 12, y: 5 }
+        }).setOrigin(0.5).setDepth(100).setVisible(false);
+
+        // ======== 增强版对话UI ========
+        this.dialogueContainer = createEnhancedDialogue(this, 'hub-chat', 0x00ffa3);
+
+        this.handleSendDialogue = async () => {
+            const inputEl = document.getElementById('hub-chat');
+            if (!inputEl?.value.trim()) return;
+            const msg = inputEl.value.trim();
+            inputEl.value = '';
+            this.dlgText.setText('');
+            this.dlgTyping.setVisible(true);
+
+            // 打字音效
+            window.audioManager?.dialogueType();
+
+            await new Promise(r => setTimeout(r, 300 + Math.random() * 500));
+            const resp = await window.GAME_STATE.dialogue.sendMessage(this.currentDialogueNpc, msg);
+            this.dlgTyping.setVisible(false);
+            this.dlgText.setText(resp);
+
+            const oldIntimacy = window.GAME_STATE.relationships.getIntimacy(this.currentDialogueNpc);
+            window.GAME_STATE.relationships.onDialogue(this.currentDialogueNpc);
+            const newIntimacy = window.GAME_STATE.relationships.getIntimacy(this.currentDialogueNpc);
+            if (newIntimacy > oldIntimacy) {
+                window.audioManager?.intimacyUp();
+            }
+            this.updateDialogueInfo(this.currentDialogueNpc);
+            this.updateHUD();
+
+            if (window.GAME_STATE.story.checkBlackMarketUnlock()) {
+                this.showStoryNotification();
+                this.scene.restart();
+            }
+
+            // 自动存档
+            window.saveManager?.save();
+        };
+
+        // ======== 剧情事件通知 ========
+        this.createStoryEventUI();
+
+        // ======== 虚拟摇杆（移动端） ========
+        this.joystick = new VirtualJoystick(this);
+
+        // ======== 音频 ========
+        window.audioManager?.startAmbient('HubScene');
+
+        // ======== 新手引导 ========
+        this.showTutorial();
+
+        // ======== 场景切换音效+渐入 ========
+        this.cameras.main.fadeIn(500, 10, 10, 26);
     }
 
     // ======== HUD ========
     createHUD() {
         const { width } = this.cameras.main;
-        this.hud = {};
+        const hudBg = this.add.graphics().setDepth(49);
+        hudBg.fillStyle(0x0a0a1e, 0.9);
+        hudBg.fillRect(0, 0, width, 38);
+        hudBg.lineStyle(1, 0x00ffa3, 0.4);
+        hudBg.lineBetween(0, 38, width, 38);
 
-        const hudBg = this.add.graphics();
-        hudBg.fillStyle(0x1a1a2e, 0.85);
-        hudBg.fillRect(0, 0, width, 36);
-        hudBg.lineStyle(1, 0x00ffa3, 0.5);
-        hudBg.lineBetween(0, 36, width, 36);
-
-        this.hud.creditsText = this.add.text(10, 8, `星币: ${window.GAME_STATE.player.credits}`, {
+        this.hudCredits = this.add.text(12, 10, `💰 ${window.GAME_STATE.player.credits} SC`, {
             fontSize: '12px', fill: '#ffd93d', fontFamily: 'Microsoft YaHei'
         }).setDepth(50);
 
-        this.hud.moralText = this.add.text(150, 8, `道德: ${window.GAME_STATE.player.moral}`, {
-            fontSize: '12px', fill: '#4ecdc4', fontFamily: 'Microsoft YaHei'
+        this.hudMoral = this.add.text(130, 10, `⚖️ 道德 ${window.GAME_STATE.player.moral}`, {
+            fontSize: '11px', fill: '#4ecdc4', fontFamily: 'Microsoft YaHei'
         }).setDepth(50);
 
-        // 满意度条
         const sat = window.GAME_STATE.factionSatisfaction;
-        this.drawSatBar(width - 300, 10, '商', sat.merchant, 0xff6b35);
-        this.drawSatBar(width - 200, 10, '矿', sat.miner, 0xd4a574);
-        this.drawSatBar(width - 100, 10, '督', sat.governor, 0x4a90d9);
+        this.drawSatBar(width - 300, 12, '🏛️商', sat.merchant, 0xff6b35);
+        this.drawSatBar(width - 200, 12, '⚒️矿', sat.miner, 0xd4a574);
+        this.drawSatBar(width - 100, 12, '🛡️督', sat.governor, 0x4a90d9);
 
-        // 底线操作提示
-        this.add.text(width / 2, 528, 'WASD移动 · E对话/交互 · Q故事日志 · Esc关闭', {
-            fontSize: '10px', fill: '#444466', fontFamily: 'Microsoft YaHei'
+        this.add.text(width / 2, 530, 'WASD移动 · E对话 · Q日志 · I区域信息 · H帮助 · Esc关闭', {
+            fontSize: '9px', fill: '#444466', fontFamily: 'Microsoft YaHei'
         }).setOrigin(0.5).setDepth(50);
     }
 
     drawSatBar(x, y, label, value, color) {
         this.add.graphics().setDepth(50).fillStyle(0x333333, 1).fillRoundedRect(x, y, 60, 8, 2);
         this.add.graphics().setDepth(50).fillStyle(color, 1).fillRoundedRect(x, y, 60 * (value / 100), 8, 2);
-        this.add.text(x - 16, y - 2, label, {
-            fontSize: '10px', fill: '#' + color.toString(16).padStart(6, '0'), fontFamily: 'Microsoft YaHei'
-        }).setDepth(50);
+        this.add.text(x - 2, y - 2, label, {
+            fontSize: '8px', fill: '#' + color.toString(16).padStart(6, '0'), fontFamily: 'Microsoft YaHei'
+        }).setOrigin(1, 0).setDepth(50);
     }
 
     updateHUD() {
-        this.hud.creditsText?.setText(`星币: ${window.GAME_STATE.player.credits}`);
-        this.hud.moralText?.setText(`道德: ${window.GAME_STATE.player.moral}`);
+        this.hudCredits?.setText(`💰 ${window.GAME_STATE.player.credits} SC`);
+        this.hudMoral?.setText(`⚖️ 道德 ${window.GAME_STATE.player.moral}`);
     }
 
-    // ======== 对话UI（带NPC头像） ========
-    createDialogueUI() {
-        const { width, height } = this.cameras.main;
+    // ======== 新手引导 ========
+    showTutorial() {
+        const hasSeenTutorial = localStorage.getItem('yinghe_tutorial_seen');
+        if (hasSeenTutorial) return;
 
-        this.dialogueContainer = this.add.container(0, 0).setDepth(200).setVisible(false);
+        const { width, height } = this.cameras.main;
+        this.tutorialContainer = this.add.container(0, 0).setDepth(500);
 
         const overlay = this.add.graphics();
-        overlay.fillStyle(0x000000, 0.5);
+        overlay.fillStyle(0x000000, 0.7);
         overlay.fillRect(0, 0, width, height);
-        this.dialogueContainer.add(overlay);
+        this.tutorialContainer.add(overlay);
 
-        const dBg = this.add.graphics();
-        dBg.fillStyle(0x1a1a2e, 0.95);
-        dBg.fillRoundedRect(80, height - 220, width - 160, 195, 10);
-        dBg.lineStyle(2, 0x00ffa3, 0.8);
-        dBg.strokeRoundedRect(80, height - 220, width - 160, 195, 10);
-        this.dialogueContainer.add(dBg);
+        const pw = 600, ph = 380;
+        const px = (width - pw) / 2, py = (height - ph) / 2;
+        const bg = this.add.graphics();
+        bg.fillStyle(0x0a0a1e, 0.98);
+        bg.fillRoundedRect(px, py, pw, ph, 12);
+        bg.lineStyle(2, 0x00ffa3, 0.9);
+        bg.strokeRoundedRect(px, py, pw, ph, 12);
+        // 顶部装饰
+        bg.fillStyle(0x00ffa3, 0.15);
+        bg.fillRect(px + 12, py + 2, pw - 24, 3);
+        this.tutorialContainer.add(bg);
 
-        // NPC头像（左侧）
-        this.dialoguePortrait = this.add.image(140, height - 125, 'portrait_player').setDisplaySize(80, 80).setDepth(201);
-        this.dialogueContainer.add(this.dialoguePortrait);
+        this.tutorialContainer.add(this.add.text(width / 2, py + 28, '👋 欢迎来到荧河空间站', {
+            fontSize: '20px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei', fontStyle: 'bold'
+        }).setOrigin(0.5));
 
-        // 头像框装饰
-        const portraitFrame = this.add.graphics();
-        portraitFrame.lineStyle(2, 0x00ffa3, 0.8);
-        portraitFrame.strokeRoundedRect(98, height - 168, 84, 84, 6);
-        this.dialogueContainer.add(portraitFrame);
+        const lines = [
+            { text: '', y: 0 },
+            { text: '你是联盟新派来的谈判官。荧河的各方势力矛盾重重，', y: 0 },
+            { text: '你需要通过对话了解局势、建立信任、做出决策。', y: 0 },
+            { text: '', y: 0 },
+            { text: '🎮 操作方式', y: 0, style: { fill: '#ff6b35', fontStyle: 'bold', fontSize: '13px' } },
+            { text: '  WASD / 方向键 — 移动角色', y: 0 },
+            { text: '  E — 与NPC对话 / 进入传送门', y: 0 },
+            { text: '  Q — 打开故事日志（查看进度）', y: 0 },
+            { text: '  I — 显示区域信息面板', y: 0 },
+            { text: '  H — 显示帮助  ·  Esc — 关闭面板', y: 0 },
+            { text: '', y: 0 },
+            { text: '💡 小贴士', y: 0, style: { fill: '#ffd93d', fontStyle: 'bold', fontSize: '13px' } },
+            { text: '  多聊天 → 提升亲密度 → 解锁更多信息和区域', y: 0 },
+            { text: '  传送门连接空间站的各个区域，按E即可穿越', y: 0 },
+            { text: '  游戏自动存档，刷新页面可继续', y: 0 },
+            { text: '', y: 0 },
+            { text: '祝你好运，谈判官。荧河需要你。', y: 0, style: { fill: '#4ecdc4', fontStyle: 'bold' } },
+        ];
 
-        this.dialogueName = this.add.text(195, height - 210, '', {
-            fontSize: '15px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei', fontStyle: 'bold'
-        }).setDepth(201);
-        this.dialogueContainer.add(this.dialogueName);
+        let lineY = py + 58;
+        for (const line of lines) {
+            const style = line.style || { fill: '#ccccdd', fontSize: '12px' };
+            this.tutorialContainer.add(this.add.text(px + 30, lineY, line.text, {
+                fontFamily: 'Microsoft YaHei', ...style
+            }));
+            lineY += 18;
+        }
 
-        // 亲密度小标签
-        this.dialogueIntimacy = this.add.text(350, height - 208, '', {
-            fontSize: '11px', fill: '#4ecdc4', fontFamily: 'Microsoft YaHei'
-        }).setDepth(201);
-        this.dialogueContainer.add(this.dialogueIntimacy);
-
-        this.dialogueText = this.add.text(195, height - 185, '', {
-            fontSize: '13px', fill: '#ffffff', fontFamily: 'Microsoft YaHei',
-            wordWrap: { width: width - 330 }
-        }).setDepth(201);
-        this.dialogueContainer.add(this.dialogueText);
-
-        // 输入框
-        const inputBg = this.add.graphics();
-        inputBg.fillStyle(0x0d0d24, 0.9);
-        inputBg.fillRoundedRect(100, height - 80, width - 340, 36, 6);
-        inputBg.lineStyle(1, 0x4ecdc4, 0.6);
-        inputBg.strokeRoundedRect(100, height - 80, width - 340, 36, 6);
-        this.dialogueContainer.add(inputBg);
-
-        this.dialogueInput = this.add.dom(110, height - 68).createFromHTML(
-            '<input type="text" id="chat-input" placeholder="输入消息与NPC对话..." style="width:470px;height:30px;background:transparent;border:none;color:#ffffff;font-size:13px;font-family:Microsoft YaHei;outline:none;">'
-        ).setDepth(202);
-        this.dialogueContainer.add(this.dialogueInput);
-
-        const sendBtn = this.add.text(width - 220, height - 72, '发送', {
-            fontSize: '13px', fill: '#0a0a1a', fontFamily: 'Microsoft YaHei',
-            backgroundColor: '#00ffa3', padding: { x: 16, y: 6 }
-        }).setInteractive({ useHandCursor: true }).setDepth(202);
-        sendBtn.on('pointerdown', () => this.sendDialogueMessage());
-        this.dialogueContainer.add(sendBtn);
-
-        // 故事选项按钮
-        this.storyChoiceBtn = this.add.text(width - 140, height - 72, '', {
-            fontSize: '12px', fill: '#fff', fontFamily: 'Microsoft YaHei',
-            backgroundColor: '#2a2a4e', padding: { x: 10, y: 5 }
-        }).setInteractive({ useHandCursor: true }).setDepth(202).setVisible(false);
-        this.storyChoiceBtn.on('pointerdown', () => this.handleStoryChoice());
-
-        const closeBtn = this.add.text(width - 110, height - 215, '✕', {
-            fontSize: '16px', fill: '#ff6b35', fontFamily: 'Microsoft YaHei'
-        }).setInteractive({ useHandCursor: true }).setDepth(201);
-        closeBtn.on('pointerdown', () => this.closeDialogue());
-        this.dialogueContainer.add(closeBtn);
-        this.dialogueContainer.add(this.storyChoiceBtn);
+        const startBtn = this.add.text(width / 2, py + ph - 36, '[ 开始探索 ]', {
+            fontSize: '16px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei', fontStyle: 'bold',
+            backgroundColor: '#1a1a3e', padding: { x: 24, y: 8 }
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        startBtn.on('pointerdown', () => {
+            this.tutorialContainer.setVisible(false);
+            localStorage.setItem('yinghe_tutorial_seen', '1');
+            window.audioManager?.uiClick();
+        });
+        startBtn.on('pointerover', () => startBtn.setStyle({ fill: '#ffffff' }));
+        startBtn.on('pointerout', () => startBtn.setStyle({ fill: '#00ffa3' }));
+        this.tutorialContainer.add(startBtn);
     }
 
+    // ======== 打开对话 ========
     openDialogue(npcId) {
         this.isInDialogue = true;
         this.currentDialogueNpc = npcId;
         const npc = NPC_DATA[npcId];
+        const faction = getFactionInfo(npc.faction);
 
-        this.dialogueName.setText(npc.name);
-        this.dialogueName.setColor('#' + npc.color.toString(16).padStart(6, '0'));
+        window.audioManager?.dialogueOpen();
 
-        // 显示NPC头像
+        this.dlgName.setText(npc.name);
+        this.dlgName.setColor('#' + npc.color.toString(16).padStart(6, '0'));
+        this.dlgTitle.setText(npc.title || '');
+        this.dlgFaction.setText(`${faction.icon} ${faction.name}`);
+
         const portraitKey = `portrait_npc_${npcId}`;
         if (this.textures.exists(portraitKey)) {
-            this.dialoguePortrait.setTexture(portraitKey);
+            this.dlgPortrait.setTexture(portraitKey);
         }
-        this.dialoguePortrait.setDisplaySize(80, 80);
+        this.dlgPortrait.setDisplaySize(90, 90);
 
-        // 显示亲密度
-        const intimacy = window.GAME_STATE.relationships.getIntimacy(npcId);
-        this.dialogueIntimacy.setText(`♥ 亲密度: ${intimacy}`);
+        this.updateDialogueInfo(npcId);
 
-        // 首次对话触发剧情推进
+        this.dlgTyping.setVisible(true);
+        this.dlgText.setText('');
         const response = window.GAME_STATE.dialogue.sendMessage(npcId, '你好');
-        this.dialogueText.setText(response);
-        this.dialogueContainer.setVisible(true);
+        this.dlgTyping.setVisible(false);
+        this.dlgText.setText(response);
 
+        this.dialogueContainer.setVisible(true);
         window.GAME_STATE.relationships.onDialogue(npcId);
         window.GAME_STATE.story.onImportantDialogue(npcId);
         this.updateHUD();
-
-        // 显示剧情事件通知
         this.showStoryNotification();
     }
 
-    async sendDialogueMessage() {
-        const inputEl = document.getElementById('chat-input');
-        if (!inputEl || !inputEl.value.trim()) return;
-
-        const message = inputEl.value.trim();
-        inputEl.value = '';
-        this.dialogueText.setText('...');
-
-        const response = await window.GAME_STATE.dialogue.sendMessage(this.currentDialogueNpc, message);
-        this.dialogueText.setText(response);
-
-        window.GAME_STATE.relationships.onDialogue(this.currentDialogueNpc);
-        // 刷新亲密度显示
-        const intimacy = window.GAME_STATE.relationships.getIntimacy(this.currentDialogueNpc);
-        this.dialogueIntimacy.setText(`♥ 亲密度: ${intimacy}`);
-        this.updateHUD();
-
-        // 检查黑市解锁
-        if (window.GAME_STATE.story.checkBlackMarketUnlock()) {
-            this.showStoryNotification();
-            this.scene.restart();
-        }
+    updateDialogueInfo(npcId) {
+        const intimacy = window.GAME_STATE.relationships.getIntimacy(npcId);
+        this.dlgHearts.setText(window.getIntimacyHearts(intimacy));
+        this.dlgFactionBar.clear();
+        this.dlgFactionBar.fillStyle(NPC_DATA[npcId].color, 0.6);
+        this.dlgFactionBar.fillRect(56, 128, 100, 3);
     }
 
     closeDialogue() {
@@ -332,61 +361,45 @@ class HubScene extends Phaser.Scene {
         this.currentDialogueNpc = null;
     }
 
-    handleStoryChoice() {
-        // 叙事决策：由对话系统触发
-        // 简化为：对话中的关键决策直接通过对话文本触发
-        this.closeDialogue();
-    }
-
     // ======== 剧情事件通知 ========
     createStoryEventUI() {
         const { width, height } = this.cameras.main;
-
-        this.storyNotify = this.add.container(0, 0).setDepth(150).setVisible(false);
-
+        this.storyNotify = this.add.container(0, 0).setDepth(300).setVisible(false);
         const bg = this.add.graphics();
-        bg.fillStyle(0x0a0a1a, 0.85);
-        bg.fillRoundedRect(width / 2 - 250, 60, 500, 100, 8);
-        bg.lineStyle(2, 0xffd93d, 0.8);
-        bg.strokeRoundedRect(width / 2 - 250, 60, 500, 100, 8);
+        bg.fillStyle(0x0a0a1e, 0.92);
+        bg.fillRoundedRect(width / 2 - 260, 55, 520, 90, 8);
+        bg.lineStyle(2, 0xffd93d, 0.9);
+        bg.strokeRoundedRect(width / 2 - 260, 55, 520, 90, 8);
         this.storyNotify.add(bg);
-
-        this.notifyTitle = this.add.text(width / 2, 75, '', {
+        this.notifyTitle = this.add.text(width / 2, 68, '', {
             fontSize: '14px', fill: '#ffd93d', fontFamily: 'Microsoft YaHei', fontStyle: 'bold'
         }).setOrigin(0.5);
         this.storyNotify.add(this.notifyTitle);
-
-        this.notifyText = this.add.text(width / 2, 105, '', {
-            fontSize: '11px', fill: '#ffffff', fontFamily: 'Microsoft YaHei',
-            wordWrap: { width: 460 }, align: 'center'
+        this.notifyText = this.add.text(width / 2, 95, '', {
+            fontSize: '11px', fill: '#e0e0e0', fontFamily: 'Microsoft YaHei',
+            wordWrap: { width: 480 }, align: 'center'
         }).setOrigin(0.5);
         this.storyNotify.add(this.notifyText);
-
-        const closeN = this.add.text(width / 2, 145, '点此关闭', {
-            fontSize: '10px', fill: '#666666', fontFamily: 'Microsoft YaHei'
+        const closeN = this.add.text(width / 2, 130, '[ 点击关闭 ]', {
+            fontSize: '9px', fill: '#666666', fontFamily: 'Microsoft YaHei'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
         closeN.on('pointerdown', () => this.storyNotify.setVisible(false));
         this.storyNotify.add(closeN);
     }
 
     showStoryNotification() {
-        const story = window.GAME_STATE.story;
-        const events = story.events;
+        const events = window.GAME_STATE.story.events;
         if (events.length === 0) return;
-
         const last = events[events.length - 1];
         if (last._notified) return;
         last._notified = true;
 
-        const typeLabels = {
-            main_quest: '📋 主线推进',
-            crisis: '🚨 危机爆发',
-            recovery: '🔧 事件解决',
-            secret: '🔮 隐藏发现',
-            unlock: '🔓 区域解锁',
-            hint: '💡 线索提示'
-        };
+        window.audioManager?.storyEvent();
 
+        const typeLabels = {
+            main_quest: '📋 主线推进', crisis: '🚨 危机爆发', recovery: '🔧 事件解决',
+            secret: '🔮 隐藏发现', unlock: '🔓 区域解锁', hint: '💡 线索提示'
+        };
         this.notifyTitle.setText(typeLabels[last.type] || '📌 剧情更新');
         this.notifyText.setText(last.description);
         this.storyNotify.setVisible(true);
@@ -395,92 +408,91 @@ class HubScene extends Phaser.Scene {
     // ======== 故事日志 ========
     showStoryLog() {
         const { width, height } = this.cameras.main;
-        if (this.logContainer) {
-            this.logContainer.setVisible(!this.logContainer.visible);
-            return;
-        }
+        if (this.logContainer) { this.logContainer.setVisible(!this.logContainer.visible); return; }
 
-        this.logContainer = this.add.container(0, 0).setDepth(300);
+        window.audioManager?.uiClick();
 
+        this.logContainer = this.add.container(0, 0).setDepth(400);
         const overlay = this.add.graphics();
-        overlay.fillStyle(0x000000, 0.6);
-        overlay.fillRect(0, 0, width, height);
+        overlay.fillStyle(0x000000, 0.6); overlay.fillRect(0, 0, width, height);
         this.logContainer.add(overlay);
-
         const bg = this.add.graphics();
-        bg.fillStyle(0x1a1a2e, 0.95);
-        bg.fillRoundedRect(130, 40, 700, 460, 10);
+        bg.fillStyle(0x0a0a1e, 0.95);
+        bg.fillRoundedRect(130, 30, 700, 480, 10);
         bg.lineStyle(2, 0x00ffa3, 0.8);
-        bg.strokeRoundedRect(130, 40, 700, 460, 10);
+        bg.strokeRoundedRect(130, 30, 700, 480, 10);
         this.logContainer.add(bg);
 
-        this.add.text(480, 55, '📖 故事日志', {
+        this.add.text(480, 48, '📖 故事日志', {
             fontSize: '18px', fill: '#00ffa3', fontFamily: 'Microsoft YaHei', fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(301);
+        }).setOrigin(0.5).setDepth(401);
 
         const story = window.GAME_STATE.story;
         const summary = story.getSummary();
-
         let content = `当前目标: ${summary.mainQuest}\n\n`;
         content += `主线进度: ${'■'.repeat(Math.floor(summary.progress / 10))}${'□'.repeat(10 - Math.floor(summary.progress / 10))} ${summary.progress}%\n\n`;
-
-        content += `三方满意度:\n`;
         const sat = window.GAME_STATE.factionSatisfaction;
-        content += `🏛️ 商会: ${sat.merchant}  |  ⚒️ 矿工: ${sat.miner}  |  🛡️ 总督: ${sat.governor}\n\n`;
-
-        content += `道德值: ${window.GAME_STATE.player.moral}\n\n`;
+        content += `🏛️ 商会: ${sat.merchant}  ⚒️ 矿工: ${sat.miner}  🛡️ 总督: ${sat.governor}\n\n`;
+        content += `⚖️ 道德值: ${window.GAME_STATE.player.moral}\n\n`;
 
         if (story.events.length > 0) {
-            content += `——剧情记录——\n`;
-            const recent = story.events.slice(-5);
-            for (const e of recent) {
+            content += '—— 剧情记录 ——\n';
+            story.events.slice(-6).forEach(e => {
                 const typeMap = { main_quest: '📋', crisis: '🚨', recovery: '🔧', secret: '🔮', unlock: '🔓', hint: '💡' };
-                content += `${typeMap[e.type] || '📌'} ${e.description.substring(0, 40)}...\n`;
-            }
+                content += `${typeMap[e.type] || '📌'} ${e.description.substring(0, 45)}...\n`;
+            });
         }
+        if (window.GAME_STATE.flags.blackMarketUnlocked) content += '\n🔓 暗市街区已解锁';
 
-        if (window.GAME_STATE.flags.blackMarketUnlocked) {
-            content += '\n🔓 暗市街区已解锁 - 前往中央大厅下方传送门';
-        }
-
-        const logText = this.add.text(160, 80, content, {
-            fontSize: '12px', fill: '#ffffff', fontFamily: 'Microsoft YaHei',
-            lineSpacing: 6
-        }).setDepth(301);
+        const logText = this.add.text(155, 75, content, {
+            fontSize: '12px', fill: '#e0e0e0', fontFamily: 'Microsoft YaHei', lineSpacing: 6
+        }).setDepth(401);
         this.logContainer.add(logText);
 
-        const closeBtn = this.add.text(800, 50, '✕', {
-            fontSize: '16px', fill: '#ff6b35'
-        }).setInteractive({ useHandCursor: true }).setDepth(301);
+        const closeBtn = this.add.text(810, 40, '✕', { fontSize: '16px', fill: '#ff6b35' })
+            .setInteractive({ useHandCursor: true }).setDepth(401);
         closeBtn.on('pointerdown', () => this.logContainer.setVisible(false));
         this.logContainer.add(closeBtn);
     }
 
     // ======== 主循环 ========
     update() {
-        if (this.isInDialogue) {
-            this.player.setVelocity(0);
-            return;
-        }
+        if (this.isInDialogue) { this.player.setVelocity(0); return; }
 
-        // 移动
         const speed = this.player.speed;
         let vx = 0, vy = 0;
+
+        // 键盘输入
         if (this.cursors.left.isDown || this.wasd.A.isDown) vx = -speed;
         else if (this.cursors.right.isDown || this.wasd.D.isDown) vx = speed;
         if (this.cursors.up.isDown || this.wasd.W.isDown) vy = -speed;
         else if (this.cursors.down.isDown || this.wasd.S.isDown) vy = speed;
+
+        // 虚拟摇杆输入
+        if (this.joystick?.active) {
+            const dir = this.joystick.getDirection();
+            vx = dir.x * speed;
+            vy = dir.y * speed;
+        }
+
+        // 对角线速度归一化
+        if (vx !== 0 && vy !== 0) {
+            vx *= 0.707;
+            vy *= 0.707;
+        }
         this.player.setVelocity(vx, vy);
 
-        // 交互检测
         this.checkInteraction();
 
-        // 快捷键
         if (Phaser.Input.Keyboard.JustDown(this.interactKey)) this.handleInteract();
         if (Phaser.Input.Keyboard.JustDown(this.qKey)) this.showStoryLog();
+        if (Phaser.Input.Keyboard.JustDown(this.iKey)) this.areaPanel.setVisible(!this.areaPanel.visible);
+        if (Phaser.Input.Keyboard.JustDown(this.hKey)) this.showTutorial();
         if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
             if (this.isInDialogue) this.closeDialogue();
             if (this.logContainer?.visible) this.logContainer.setVisible(false);
+            if (this.areaPanel?.visible) this.areaPanel.setVisible(false);
+            if (this.tutorialContainer?.visible) this.tutorialContainer.setVisible(false);
         }
     }
 
@@ -490,20 +502,22 @@ class HubScene extends Phaser.Scene {
 
         for (const [id, npc] of Object.entries(this.npcs)) {
             const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.sprite.x, npc.sprite.y);
-            if (d < 60 && d < nearDist) { nearDist = d; nearNpc = id; }
+            if (d < 65 && d < nearDist) { nearDist = d; nearNpc = id; }
         }
         for (const [id, p] of Object.entries(this.portals)) {
             const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, p.sprite.x, p.sprite.y);
-            if (d < 50 && d < nearPDist) { nearPDist = d; nearPortal = id; }
+            if (d < 55 && d < nearPDist) { nearPDist = d; nearPortal = id; }
         }
 
         if (nearNpc) {
-            this.interactHint.setText(`按E与 ${NPC_DATA[nearNpc].name} 对话`).setVisible(true);
+            const npc = NPC_DATA[nearNpc];
+            const mood = getNpcMood(nearNpc);
+            this.interactHint.setText(`${mood} 按 E 与 ${npc.name} 对话`).setVisible(true);
             this.nearestTarget = { type: 'npc', id: nearNpc };
         } else if (nearPortal) {
             const pd = this.portals[nearPortal].data;
             const locked = (pd.id === 'to_blackmarket' && !window.GAME_STATE.flags.blackMarketUnlocked);
-            this.interactHint.setText(locked ? '暗市街区 - 需要取得三方信任才能解锁' : `按E前往 ${pd.label}`).setVisible(true);
+            this.interactHint.setText(locked ? '🔒 需要取得信任才能进入暗市' : `按 E 前往 ${pd.label}`).setVisible(true);
             this.nearestTarget = locked ? null : { type: 'portal', id: nearPortal };
         } else {
             this.interactHint.setVisible(false);
@@ -513,15 +527,18 @@ class HubScene extends Phaser.Scene {
 
     handleInteract() {
         if (!this.nearestTarget) return;
-
         if (this.nearestTarget.type === 'npc') {
             this.openDialogue(this.nearestTarget.id);
         } else if (this.nearestTarget.type === 'portal') {
             const pd = this.portals[this.nearestTarget.id].data;
-            if (pd.scene) {
-                this.cameras.main.fadeOut(400, 10, 10, 26);
-                this.time.delayedCall(400, () => this.scene.start(pd.scene));
-            }
+            window.audioManager?.portalActivate();
+            window.audioManager?.stopAmbient();
+            window.saveManager?.save();
+            this.cameras.main.fadeOut(400, 10, 10, 26);
+            this.time.delayedCall(400, () => {
+                window.audioManager?.sceneTransition();
+                this.scene.start(pd.scene);
+            });
         }
     }
 }
