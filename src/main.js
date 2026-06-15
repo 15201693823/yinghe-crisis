@@ -15,6 +15,7 @@ const config = {
     },
     scene: [
         BootScene,
+        IntroScene,
         MenuScene,
         HubScene,
         GovernorScene,

@@ -211,6 +211,12 @@ class HubScene extends Phaser.Scene {
         // ======== 新手引导 ========
         this.showTutorial();
 
+        // ======== AI连接状态指示器（全局） ========
+        window.createAIStatusIndicator?.(this);
+
+        // ======== 新手指引箭头+气泡 ========
+        window.tutorialSystem?.attachToScene(this);
+
         // ======== 场景切换音效+渐入 ========
         this.cameras.main.fadeIn(500, 10, 10, 26);
     }
@@ -361,6 +367,22 @@ class HubScene extends Phaser.Scene {
         window.GAME_STATE.story.onImportantDialogue(npcId);
         this.updateHUD();
         this.showStoryNotification();
+
+        // 新手引导：检查进度
+        if (window.tutorialSystem?.isActive()) {
+            const prevStep = window.tutorialSystem.step;
+            let advanced = window.tutorialSystem.checkProgress('HubScene', npcId);
+            // 暗市解锁时也推进
+            if (!advanced && window.GAME_STATE.flags.blackMarketUnlocked) {
+                advanced = window.tutorialSystem.checkBlackMarketProgress();
+            }
+            if (advanced) {
+                window.tutorialSystem.clearFromScene(this);
+                window.tutorialSystem.showStepNotification(this, prevStep + 1);
+                // 重新附加下一步箭头
+                this.time.delayedCall(200, () => window.tutorialSystem?.attachToScene(this));
+            }
+        }
         
         // 对话打开后，检查是否有决策事件可触发
         this.checkAndShowDecision();
@@ -476,6 +498,17 @@ class HubScene extends Phaser.Scene {
             this.showDecisionResult(result.message);
             this.updateHUD();
             window.saveManager?.save();
+
+            // 新手引导：决策步骤推进
+            if (window.tutorialSystem?.isActive()) {
+                const prevStep = window.tutorialSystem.step;
+                const advanced = window.tutorialSystem.checkDecisionProgress();
+                if (advanced) {
+                    window.tutorialSystem.clearFromScene(this);
+                    window.tutorialSystem.showStepNotification(this, prevStep + 1);
+                    this.time.delayedCall(200, () => window.tutorialSystem?.attachToScene(this));
+                }
+            }
         }
     }
     

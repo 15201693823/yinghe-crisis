@@ -231,6 +231,49 @@ class MenuScene extends Phaser.Scene {
             this.showAboutPanel();
         });
 
+        // 重新开始引导按钮（仅当引导未完成时显示）
+        if (window.tutorialSystem?.isActive()) {
+            const tutorialBtnY = aboutBtnY + btnSpacing;
+            const tutorialBtnBg = createBtnBg(tutorialBtnY);
+            const tutorialBtn = this.add.text(btnCenterX, tutorialBtnY, '🔄 重新开始引导', {
+                ...btnTextStyle, fontSize: '18px', fill: '#d4a574'
+            }).setOrigin(0.5).setDepth(10).setInteractive({ useHandCursor: true });
+            
+            tutorialBtn.on('pointerover', () => {
+                tutorialBtnBg.clear();
+                tutorialBtnBg.fillStyle(0xd4a574, 0.3);
+                tutorialBtnBg.fillRoundedRect(btnCenterX - btnWidth/2, tutorialBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+                tutorialBtnBg.lineStyle(3, 0xd4a574, 1);
+                tutorialBtnBg.strokeRoundedRect(btnCenterX - btnWidth/2, tutorialBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+                tutorialBtn.setStyle({ fill: '#ffd93d' });
+            });
+            tutorialBtn.on('pointerout', () => {
+                tutorialBtnBg.clear();
+                tutorialBtnBg.fillStyle(btnBgColor, 0.9);
+                tutorialBtnBg.fillRoundedRect(btnCenterX - btnWidth/2, tutorialBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+                tutorialBtnBg.lineStyle(2, btnBorderColor, 0.8);
+                tutorialBtnBg.strokeRoundedRect(btnCenterX - btnWidth/2, tutorialBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+                tutorialBtn.setStyle({ fill: '#d4a574' });
+            });
+            tutorialBtn.on('pointerdown', () => {
+                window.audioManager?.init();
+                window.audioManager?.uiClick();
+                if (confirm('确定要重新开始新手引导吗？\n（当前引导进度将清空）')) {
+                    window.tutorialSystem?.reset();
+                    alert('✅ 引导已重置！下次进入游戏时将重新开始。');
+                }
+            });
+        }
+
+        // ======== 引导进度显示 ========
+        if (window.tutorialSystem?.isActive()) {
+            const ts = window.tutorialSystem;
+            this.add.text(width / 2, height - 50, 
+                `📜 引导进度: ${ts.step + 1}/${ts.STEPS.length} - ${ts.getCurrentStep()?.title || ''}`, {
+                fontSize: '10px', fill: '#d4a57488', fontFamily: 'Microsoft YaHei'
+            }).setOrigin(0.5).setDepth(10);
+        }
+
         // ======== 底部版权信息（字号增大） ========
         this.add.text(width / 2, height - 18, '首都经济贸易大学 · 驼灵智能体大赛 · Phaser.js + Coze AI', {
             fontSize: '12px', fill: '#667788', fontFamily: 'Microsoft YaHei'

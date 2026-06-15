@@ -129,6 +129,13 @@ class BlackMarketScene extends Phaser.Scene {
 
         this.joystick = new VirtualJoystick(this);
         window.audioManager?.startAmbient('BlackMarketScene');
+
+        // ======== AI连接状态指示器（全局） ========
+        window.createAIStatusIndicator?.(this);
+
+        // ======== 新手指引箭头+气泡 ========
+        window.tutorialSystem?.attachToScene(this);
+
         this.cameras.main.fadeIn(400, 10, 10, 26);
     }
     
@@ -165,7 +172,19 @@ class BlackMarketScene extends Phaser.Scene {
         this.dialogueContainer.setVisible(true);
         window.GAME_STATE.relationships.onDialogue(npcId);
         window.GAME_STATE.story.onImportantDialogue(npcId);
-        
+
+        // 新手引导：检查进度（暗市推进）
+        if (window.tutorialSystem?.isActive()) {
+            const prevStep = window.tutorialSystem.step;
+            const advanced = window.tutorialSystem.checkProgress('BlackMarketScene', npcId)
+                || window.tutorialSystem.checkBlackMarketProgress();
+            if (advanced) {
+                window.tutorialSystem.clearFromScene(this);
+                window.tutorialSystem.showStepNotification(this, prevStep + 1);
+                this.time.delayedCall(200, () => window.tutorialSystem?.attachToScene(this));
+            }
+        }
+
         // 对话打开后，检查是否有决策事件可触发
         this.checkAndShowDecision();
     }

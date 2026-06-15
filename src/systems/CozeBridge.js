@@ -31,17 +31,24 @@ class CozeBridge {
 
     // ---- 通用API调用（通过代理） ----
     async callAPI(type, payload) {
+        const callId = `api_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+        console.log(`[CozeBridge][${callId}] 调用 type=${type}, npc=${payload.npc_id || 'n/a'}`);
+
         if (!this.isConnected) {
-            console.warn('[CozeBridge] 未配置，使用本地回退');
+            console.warn(`[CozeBridge][${callId}] ⚠️ 未配置token，回退本地对话`);
             return null;
         }
 
         const message = JSON.stringify({ type, payload });
         const npcId = payload.npc_id || 'unknown';
+        const startTime = Date.now();
 
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 25000); // 25秒超时,等Coze生成完整回复
+            const timeoutId = setTimeout(() => {
+                console.warn(`[CozeBridge][${callId}] ⏱️ 请求超时(25s)，已中止`);
+                controller.abort();
+            }, 25000);
 
             const body = {
                 token: this.apiToken,
@@ -49,6 +56,8 @@ class CozeBridge {
                 conversation_id: this.conversationId[npcId] || undefined,
                 message: message
             };
+
+            console.log(`[CozeBridge][${callId}] 📡 POST ${this.proxyUrl}`);
 
             const response = await fetch(this.proxyUrl, {
                 method: 'POST',
@@ -63,14 +72,18 @@ class CozeBridge {
 
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
-                console.warn('[CozeBridge] 代理返回错误:', response.status, errData);
+                console.warn(`[CozeBridge][${callId}] ❌ HTTP ${response.status}:`, errData);
+                this.lastError = `HTTP ${response.status}`;
                 return null;
             }
 
             const data = await response.json();
+            const elapsed = Date.now() - startTime;
+            console.log(`[CozeBridge][${callId}] ✅ 响应 (${elapsed}ms) keys:`, Object.keys(data || {}));
 
             if (data.error) {
-                console.warn('[CozeBridge] 代理返回错误:', data.error);
+                console.warn(`[CozeBridge][${callId}] ❌ 代理错误:`, data.error);
+                this.lastError = data.error;
                 return null;
             }
 
@@ -84,11 +97,15 @@ class CozeBridge {
             return this.parseJSON(content);
 
         } catch (error) {
+            const elapsed = Date.now() - startTime;
             if (error.name === 'AbortError') {
-                console.warn('[CozeBridge] API调用超时');
+                console.warn(`[CozeBridge][${callId}] ⏱️ 调用超时 (${elapsed}ms)，回退本地对话`);
+                this.lastError = '请求超时';
             } else {
-                console.warn('[CozeBridge] API调用失败:', error.message);
+                console.warn(`[CozeBridge][${callId}] ❌ 调用失败 (${elapsed}ms):`, error.message);
+                this.lastError = error.message;
             }
+            // 重要：始终返回null让上层走本地fallback
             return null;
         }
     }
@@ -185,9 +202,13 @@ class CozeBridge {
 
     // ---- 连接状态检测 ----
     async testAndConnect() {
+        console.log('[CozeBridge] 开始连接测试...');
+        console.log(`[CozeBridge] botId: ${this.botId ? '已配置' : '未配置'}, token: ${this.apiToken ? '已配置' : '未配置'}, proxy: ${this.proxyUrl}`);
+
         if (!this.apiToken) {
-            console.log('[CozeBridge] 缺少token');
+            console.log('[CozeBridge] ⚠️ 缺少token，使用本地对话');
             this.isConnected = false;
+            this.lastError = '缺少token';
             return false;
         }
         
@@ -200,11 +221,17 @@ class CozeBridge {
                 conversation_history: '[]'
             });
             this.isConnected = !!result;
-            console.log('[CozeBridge] 连接测试:', this.isConnected ? '✅ AI NPC对话已启用' : '❌ 连接失败');
+            if (this.isConnected) {
+                console.log('[CozeBridge] ✅ 连接测试成功：AI NPC对话已启用');
+                this.lastError = null;
+            } else {
+                console.warn(`[CozeBridge] ⚠️ 连接测试失败: ${this.lastError || '未知错误'}，使用本地对话`);
+            }
             return this.isConnected;
         } catch (e) {
             this.isConnected = false;
-            console.warn('[CozeBridge] 连接失败:', e.message);
+            this.lastError = e.message;
+            console.warn('[CozeBridge] ❌ 连接失败:', e.message);
             return false;
         }
     }

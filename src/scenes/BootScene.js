@@ -116,7 +116,15 @@ class BootScene extends Phaser.Scene {
         }
 
         this.time.delayedCall(400, () => {
-            this.scene.start('MenuScene');
+            // 检查是否需要播放开场动画
+            const skipIntro = localStorage.getItem('yinghe_intro_seen') === '1';
+            if (skipIntro) {
+                console.log('[Boot] 已跳过开场，直接进入菜单');
+                this.scene.start('MenuScene');
+            } else {
+                console.log('[Boot] 启动开场动画');
+                this.scene.start('IntroScene');
+            }
         });
     }
 }
