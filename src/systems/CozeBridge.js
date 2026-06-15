@@ -41,7 +41,7 @@ class CozeBridge {
 
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 12000);
+            const timeoutId = setTimeout(() => controller.abort(), 25000); // 25秒超时,等Coze生成完整回复
 
             const body = {
                 token: this.apiToken,
@@ -68,7 +68,12 @@ class CozeBridge {
             }
 
             const data = await response.json();
-            
+
+            if (data.error) {
+                console.warn('[CozeBridge] 代理返回错误:', data.error);
+                return null;
+            }
+
             // 保存conversation_id用于后续对话
             if (data.data?.id) {
                 this.conversationId[npcId] = data.data.id;
