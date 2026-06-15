@@ -2,5 +2,6 @@
   "name": "yinghe-coze-proxy",
   "version": "1.0.0",
   "description": "Coze API proxy for Yinghe Crisis game",
-  "private": true
+  "private": true,
+  "type": "module"
 }

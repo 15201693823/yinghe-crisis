@@ -104,15 +104,18 @@ class BootScene extends Phaser.Scene {
             delete window.GAME_STATE._pendingRestore;
         }
 
-        // Coze连接配置（从URL参数读取）
+        // Coze连接配置（从URL参数读取,bot_id有默认值只需token）
         const urlParams = new URLSearchParams(window.location.search);
-        const botId = urlParams.get('bot_id') || '';
         const apiToken = urlParams.get('token') || '';
-        if (botId && apiToken) {
-            window.cozeBridge.configure({ botId, apiToken });
-            console.log('[Boot] Coze Bridge 已连接');
+        if (apiToken) {
+            // CozeBridge构造函数中已读取bot_id/token,这里只需确保配置正确
+            if (window.cozeBridge) {
+                window.cozeBridge.apiToken = apiToken;
+                window.cozeBridge.isConnected = true;
+            }
+            console.log('[Boot] Coze Bridge 已配置,token长度:', apiToken.length);
         } else {
-            console.log('[Boot] Coze Bridge 未配置，使用本地回退模式');
+            console.log('[Boot] Coze Bridge 未配置token,使用本地回退模式');
         }
 
         this.time.delayedCall(400, () => {

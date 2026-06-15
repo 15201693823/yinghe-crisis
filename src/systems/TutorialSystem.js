@@ -166,32 +166,106 @@ class TutorialSystem {
         const step = this.getCurrentStep();
         if (!step) return;
 
-        // 场景不匹配 → 不显示
-        if (step.targetScene && step.targetScene !== scene.scene.key) return;
+        const isTargetScene = step.targetScene === scene.scene.key;
 
-        // 找目标位置
-        let targetX, targetY;
-        if (step.targetNpc && scene.npcs && scene.npcs[step.targetNpc]) {
-            const npcSprite = scene.npcs[step.targetNpc].sprite;
-            targetX = npcSprite.x;
-            targetY = npcSprite.y - 60;
-        } else if (step.targetScene === 'HubScene') {
-            // 第一步决策：等决策卡；其他Hub场景无目标NPC → 用中央上方
-            if (step.id === 'first_decision') {
-                return; // 不画箭头，让决策卡自己出现
-            }
-            if (step.id === 'blackmarket_unlocked') {
-                // 指向暗市传送门
+        // ===== 全场景任务条 =====
+        // 任务气泡在所有场景都显示
+        scene._tutorialBubble = this.createBubble(scene, step);
+
+        // 如果是目标场景,添加"完成步骤"按钮和箭头
+        if (isTargetScene) {
+            // 找目标位置
+            let targetX, targetY;
+            if (step.targetNpc && scene.npcs && scene.npcs[step.targetNpc]) {
+                const npcSprite = scene.npcs[step.targetNpc].sprite;
+                targetX = npcSprite.x;
+                targetY = npcSprite.y - 60;
+            } else if (step.id === 'blackmarket_unlocked') {
                 const portal = scene.portals?.['to_blackmarket'];
                 if (portal) { targetX = portal.sprite.x; targetY = portal.sprite.y - 50; }
-                else return;
-            } else return;
-        } else {
-            return;
-        }
+                else targetX = null;
+            } else if (step.id === 'first_decision') {
+                targetX = null; // 等决策卡自己出现
+            } else {
+                targetX = null;
+            }
 
-        scene._tutorialArrow = this.createArrow(scene, targetX, targetY);
-        scene._tutorialBubble = this.createBubble(scene, step);
+            if (targetX !== null && targetX !== undefined) {
+                scene._tutorialArrow = this.createArrow(scene, targetX, targetY);
+            }
+        } else {
+            // 非目标场景 → 显示"前往目标"导航按钮
+            this.createNavButton(scene, step);
+        }
+    }
+
+    // ---- 跨场景导航按钮 ----
+    createNavButton(scene, step) {
+        const { width, height } = this.cameras.main;
+        const sceneNameMap = {
+            'GovernorScene': 'A层·总督府',
+            'HubScene': 'B层·中央大厅',
+            'PortScene': 'C层·星际港口',
+            'MiningScene': 'D层·矿业营地',
+            'BlackMarketScene': 'E层·暗市街区'
+        };
+        const targetName = sceneNameMap[step.targetScene] || step.targetScene;
+
+        const btnY = height - 60;
+        const container = scene.add.container(width / 2, btnY).setDepth(160);
+
+        // 按钮背景
+        const bg = scene.add.graphics();
+        const pw = 280, ph = 44;
+        bg.fillStyle(0x3a1a0a, 0.95);
+        bg.fillRoundedRect(-pw / 2, -ph / 2, pw, ph, 10);
+        bg.lineStyle(2, 0xd4a574, 0.9);
+        bg.strokeRoundedRect(-pw / 2, -ph / 2, pw, ph, 10);
+        // 顶部装饰
+        bg.fillStyle(0xd4a574, 0.6);
+        bg.fillRect(-pw / 2 + 8, -ph / 2 + 2, pw - 16, 2);
+        container.add(bg);
+
+        // 文字
+        const txt = scene.add.text(0, 0,
+            `➡️ 前往【${targetName}】\n${step.hint}`, {
+            fontSize: '12px', fill: '#ffd93d', fontFamily: 'Microsoft YaHei',
+            fontStyle: 'bold', align: 'center', lineSpacing: 2
+        }).setOrigin(0.5);
+        container.add(txt);
+
+        // 点击跳转
+        bg.setInteractive(
+            new Phaser.Geom.Rectangle(-pw / 2, -ph / 2, pw, ph),
+            Phaser.Geom.Rectangle.Contains
+        );
+        bg.on('pointerdown', () => {
+            // 场景跳转映射
+            const sceneMap = {
+                'HubScene': 'HubScene',
+                'GovernorScene': 'GovernorScene',
+                'PortScene': 'PortScene',
+                'MiningScene': 'MiningScene',
+                'BlackMarketScene': 'BlackMarketScene'
+            };
+            const targetKey = sceneMap[step.targetScene];
+            if (targetKey && scene.scene.key !== targetKey) {
+                console.log(`[TutorialSystem] 导航: ${scene.scene.key} → ${targetKey}`);
+                scene.scene.start(targetKey);
+            }
+        });
+
+        // 上下浮动 + 呼吸光晕
+        scene.tweens.add({
+            targets: container, y: btnY - 4,
+            duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+        });
+        scene.tweens.add({
+            targets: bg, alpha: 0.85,
+            duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+        });
+
+        scene._tutorialNavBtn = container;
     }
 
     createArrow(scene, x, y) {
