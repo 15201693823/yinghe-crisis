@@ -1,23 +1,23 @@
 // ============================================================
-// Coze API 对接层 - 连接前端与Coze工作流
+// Coze API 对接层 - 通过Vercel代理连接Coze工作流
 // ============================================================
 
 class CozeBridge {
     constructor() {
         // 从URL参数读取配置
         const params = new URLSearchParams(window.location.search);
-        this.botId = params.get('bot_id') || '';
+        this.botId = params.get('bot_id') || '7651497078316810240';
         this.apiToken = params.get('token') || '';
-        this.proxyUrl = params.get('proxy') || '';  // 可选CORS代理
-        this.apiUrl = this.proxyUrl || 'https://api.coze.cn/v3/chat';
+        // 代理地址 - Vercel serverless function
+        this.proxyUrl = params.get('proxy') || 'https://coze-proxy-eta.vercel.app/api/chat';
         this.userId = 'player_' + Math.random().toString(36).substr(2, 8);
         this.isConnected = !!(this.botId && this.apiToken);
         this.conversationId = {};  // npcId -> conversation_id
         
         if (this.isConnected) {
-            console.log('[CozeBridge] 已配置，Bot ID:', this.botId);
+            console.log('[CozeBridge] 已配置，Bot ID:', this.botId, '代理:', this.proxyUrl);
         } else {
-            console.log('[CozeBridge] 未配置，使用本地对话');
+            console.log('[CozeBridge] 未配置token，使用本地对话');
         }
     }
 
@@ -26,11 +26,10 @@ class CozeBridge {
         this.botId = config.botId || this.botId;
         this.apiToken = config.apiToken || this.apiToken;
         this.proxyUrl = config.proxyUrl || this.proxyUrl;
-        this.apiUrl = this.proxyUrl || 'https://api.coze.cn/v3/chat';
         this.isConnected = !!(this.botId && this.apiToken);
     }
 
-    // ---- 通用API调用 ----
+    // ---- 通用API调用（通过代理） ----
     async callAPI(type, payload) {
         if (!this.isConnected) {
             console.warn('[CozeBridge] 未配置，使用本地回退');
@@ -42,33 +41,29 @@ class CozeBridge {
 
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
+            const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-            const response = await fetch(this.apiUrl, {
+            const body = {
+                token: this.apiToken,
+                user_id: this.userId,
+                conversation_id: this.conversationId[npcId] || undefined,
+                message: message
+            };
+
+            const response = await fetch(this.proxyUrl, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${this.apiToken}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    bot_id: this.botId,
-                    user_id: this.userId,
-                    stream: false,
-                    auto_save_history: true,
-                    conversation_id: this.conversationId[npcId] || undefined,
-                    additional_messages: [{
-                        role: 'user',
-                        content: message,
-                        content_type: 'text'
-                    }]
-                }),
+                body: JSON.stringify(body),
                 signal: controller.signal
             });
 
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                console.warn('[CozeBridge] API返回错误:', response.status);
+                const errData = await response.json().catch(() => ({}));
+                console.warn('[CozeBridge] 代理返回错误:', response.status, errData);
                 return null;
             }
 
@@ -95,9 +90,8 @@ class CozeBridge {
 
     // ---- 提取Coze响应内容 ----
     extractContent(data) {
-        // Coze v3 API 响应格式
+        // Coze v3 API 非流式响应格式
         if (data.data) {
-            // 非流式响应
             const messages = data.data.messages || [];
             const answerMsg = messages.find(m => m.role === 'assistant' && m.type === 'answer');
             if (answerMsg) return answerMsg.content;
@@ -116,7 +110,6 @@ class CozeBridge {
     // ---- 安全解析JSON ----
     parseJSON(content) {
         try {
-            // 尝试直接解析
             return JSON.parse(content);
         } catch (e) {
             // 尝试提取JSON块
@@ -130,7 +123,8 @@ class CozeBridge {
                 try { return JSON.parse(braceMatch[0]); } catch (e3) {}
             }
             console.warn('[CozeBridge] 无法解析JSON:', content);
-            return null;
+            // 返回纯文本作为回复
+            return { reply: content, intimacy_change: 0, attitude_signal: 'neutral' };
         }
     }
 
@@ -186,8 +180,8 @@ class CozeBridge {
 
     // ---- 连接状态检测 ----
     async testAndConnect() {
-        if (!this.botId || !this.apiToken) {
-            console.log('[CozeBridge] 缺少bot_id或token');
+        if (!this.apiToken) {
+            console.log('[CozeBridge] 缺少token');
             this.isConnected = false;
             return false;
         }
@@ -201,7 +195,7 @@ class CozeBridge {
                 conversation_history: '[]'
             });
             this.isConnected = !!result;
-            console.log('[CozeBridge] 连接测试:', this.isConnected ? '成功' : '失败');
+            console.log('[CozeBridge] 连接测试:', this.isConnected ? '✅ AI NPC对话已启用' : '❌ 连接失败');
             return this.isConnected;
         } catch (e) {
             this.isConnected = false;
