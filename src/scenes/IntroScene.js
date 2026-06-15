@@ -227,10 +227,11 @@ class IntroScene extends Phaser.Scene {
         // 标记已观看开场
         localStorage.setItem('yinghe_intro_seen', '1');
 
-        // 暖金淡出 → 进入菜单
+        // 暖金淡出 → 决定去向：从菜单的"开始游戏"进来播完直接进HubScene；从"🎬观看"进来则回MenuScene
+        const nextScene = (this.init && this.init.data && this.init.data.next) || 'MenuScene';
         this.cameras.main.fadeOut(600, 90, 26, 10);
         this.time.delayedCall(600, () => {
-            this.scene.start('MenuScene');
+            this.scene.start(nextScene);
         });
     }
 }

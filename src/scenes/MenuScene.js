@@ -129,9 +129,11 @@ class MenuScene extends Phaser.Scene {
         startBtn.on('pointerdown', () => {
             window.audioManager?.init();
             window.audioManager?.uiClick();
-            this.cameras.main.fadeOut(600, 10, 10, 26);
+            // 强制播放开场动画（清除已观看标记），播完直接进游戏，不用回菜单
+            localStorage.removeItem('yinghe_intro_seen');
+            this.cameras.main.fadeOut(600, 90, 26, 10);
             this.time.delayedCall(600, () => {
-                this.scene.start('HubScene');
+                this.scene.start('IntroScene', { next: 'HubScene' });
             });
         });
 
@@ -289,7 +291,7 @@ class MenuScene extends Phaser.Scene {
             localStorage.removeItem('yinghe_intro_seen');
             this.cameras.main.fadeOut(400, 90, 26, 10);
             this.time.delayedCall(400, () => {
-                this.scene.start('IntroScene');
+                this.scene.start('IntroScene', { next: 'MenuScene' });
             });
         });
 
