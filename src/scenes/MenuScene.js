@@ -259,6 +259,40 @@ class MenuScene extends Phaser.Scene {
             this.showGalleryPanel();
         });
 
+        // 重新观看开场动画按钮
+        const introBtnY = galleryBtnY + btnSpacing;
+        const introBtnBg = createBtnBg(introBtnY);
+        const introBtn = this.add.text(btnCenterX, introBtnY, '🎬 观看开场动画', {
+            ...btnTextStyle, fontSize: '16px', fill: '#d4a574'
+        }).setOrigin(0.5).setDepth(10).setInteractive({ useHandCursor: true });
+
+        introBtn.on('pointerover', () => {
+            introBtnBg.clear();
+            introBtnBg.fillStyle(0xd4a574, 0.3);
+            introBtnBg.fillRoundedRect(btnCenterX - btnWidth/2, introBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            introBtnBg.lineStyle(3, 0xd4a574, 1);
+            introBtnBg.strokeRoundedRect(btnCenterX - btnWidth/2, introBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            introBtn.setStyle({ fill: '#ffd93d' });
+        });
+        introBtn.on('pointerout', () => {
+            introBtnBg.clear();
+            introBtnBg.fillStyle(btnBgColor, 0.9);
+            introBtnBg.fillRoundedRect(btnCenterX - btnWidth/2, introBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            introBtnBg.lineStyle(2, btnBorderColor, 0.8);
+            introBtnBg.strokeRoundedRect(btnCenterX - btnWidth/2, introBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            introBtn.setStyle({ fill: '#d4a574' });
+        });
+        introBtn.on('pointerdown', () => {
+            window.audioManager?.init();
+            window.audioManager?.uiClick();
+            // 清除localStorage标记,让开场动画正常播放
+            localStorage.removeItem('yinghe_intro_seen');
+            this.cameras.main.fadeOut(400, 90, 26, 10);
+            this.time.delayedCall(400, () => {
+                this.scene.start('IntroScene');
+            });
+        });
+
         // 重新开始引导按钮（仅当引导未完成时显示）
         if (window.tutorialSystem?.isActive()) {
             const tutorialBtnY = galleryBtnY + btnSpacing;
