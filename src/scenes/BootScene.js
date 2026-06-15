@@ -211,29 +211,52 @@ window.createEnhancedDialogue = function(scene, inputId, accentColor) {
     // ---- 输入区域 ----
     const inputY = panelY + panelH - 50;
     const inputBg = scene.add.graphics();
-    inputBg.fillStyle(0x0d0d24, 0.9);
-    inputBg.fillRoundedRect(chatX - 4, inputY, chatW + 4, 36, 6);
-    inputBg.lineStyle(1, accentColor, 0.4);
-    inputBg.strokeRoundedRect(chatX - 4, inputY, chatW + 4, 36, 6);
+    inputBg.fillStyle(0x0d0d24, 0.95);
+    inputBg.fillRoundedRect(chatX - 4, inputY, chatW + 4, 36, 8);
+    inputBg.lineStyle(2, accentColor, 0.8);
+    inputBg.strokeRoundedRect(chatX - 4, inputY, chatW + 4, 36, 8);
     container.add(inputBg);
 
-    // 创建输入框
+    // 创建输入框(HTML元素,清晰可见)
     const inputEl = document.createElement('input');
     inputEl.type = 'text';
     inputEl.id = inputId;
-    inputEl.placeholder = '输入消息与NPC对话…';
-    inputEl.style.cssText = `width:${chatW - 90}px;height:28px;background:transparent;border:none;color:#ffffff;font-size:13px;font-family:Microsoft YaHei;outline:none;`;
+    inputEl.placeholder = '✏️ 输入消息,回车发送...';
+    inputEl.autocomplete = 'off';
+    inputEl.style.cssText = [
+        'box-sizing:border-box',
+        'width:' + (chatW - 90) + 'px',
+        'height:32px',
+        'padding:0 8px',
+        'background:#1a1a3e',
+        'border:1px solid #' + accentColor.toString(16).padStart(6, '0'),
+        'border-radius:4px',
+        'color:#ffffff',
+        'font-size:13px',
+        'font-family:Microsoft YaHei',
+        'outline:none'
+    ].join(';');
 
-    scene.dlgInput = scene.add.dom(chatX + 4, inputY + 8).createFromHTML(inputEl.outerHTML);
+    // 聚焦时高亮
+    inputEl.addEventListener('focus', () => {
+        inputEl.style.boxShadow = '0 0 8px #' + accentColor.toString(16).padStart(6, '0');
+    });
+    inputEl.addEventListener('blur', () => {
+        inputEl.style.boxShadow = 'none';
+    });
+
+    scene.dlgInput = scene.add.dom(chatX + 4, inputY + 18, inputEl);
+    scene.dlgInput.setDepth(250);
     container.add(scene.dlgInput);
 
     // 发送按钮 - 鼠标点击
-    const sendBtn = scene.add.text(chatX + chatW - 72, inputY + 4, '发 送', {
-        fontSize: '12px', fill: '#0a0a1a', fontFamily: 'Microsoft YaHei', fontStyle: 'bold',
-        backgroundColor: '#' + accentColor.toString(16).padStart(6, '0'), padding: { x: 14, y: 6 }
-    }).setInteractive({ useHandCursor: true }).setDepth(202);
+    const sendBtn = scene.add.text(chatX + chatW - 72, inputY + 4, '▶ 发送', {
+        fontSize: '13px', fill: '#0a0a1a', fontFamily: 'Microsoft YaHei', fontStyle: 'bold',
+        backgroundColor: '#' + accentColor.toString(16).padStart(6, '0'),
+        padding: { x: 14, y: 8 }
+    }).setInteractive({ useHandCursor: true }).setDepth(251);
     container.add(sendBtn);
-    
+
     // 添加 touchstart 支持到发送按钮
     sendBtn.on('touchstart', (pointer) => {
         pointer.event.preventDefault();
