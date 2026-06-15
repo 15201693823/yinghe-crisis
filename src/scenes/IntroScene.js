@@ -8,6 +8,11 @@ class IntroScene extends Phaser.Scene {
         super({ key: 'IntroScene' });
     }
 
+    // 接收从 MenuScene 传来的跳转目标，默认回 MenuScene
+    init(data) {
+        this.nextScene = (data && data.next) || 'MenuScene';
+    }
+
     create() {
         const { width, height } = this.cameras.main;
 
@@ -116,12 +121,21 @@ class IntroScene extends Phaser.Scene {
         // ===== 输入控制 =====
         this.skipKey = this.input.keyboard.addKey('SPACE');
         this.input.keyboard.addKey('ENTER');
+        this.input.keyboard.addKey('ESC');
         this.input.on('pointerdown', () => this.skipOrNext());
 
         this.skipKey.on('down', () => this.skipOrNext());
+        this.input.keyboard.on('keydown-ESC', () => this.skipToMenu());
+        this.input.keyboard.on('keydown-ENTER', () => this.skipToMenu());
 
         // ===== 启动第一幕 =====
         this.time.delayedCall(400, () => this.showAct(0));
+
+        // 兜底：无论发生什么，25秒后强制跳到下一场景
+        this._safetyTimer = this.time.delayedCall(25000, () => {
+            console.warn('[Intro] 安全兜底: 25秒未结束, 强制跳转到', this.nextScene);
+            this.skipToMenu();
+        });
     }
 
     showAct(idx) {
@@ -221,6 +235,7 @@ class IntroScene extends Phaser.Scene {
         if (this.actContainer) this.actContainer.destroy();
         if (this.charTimer) this.charTimer.remove();
         if (this.autoNextTimer) this.autoNextTimer.remove();
+        if (this._safetyTimer) { this._safetyTimer.remove(); this._safetyTimer = null; }
         this.hintText.setVisible(false);
         this.progressDots.forEach(d => d.setVisible(false));
 
@@ -228,10 +243,10 @@ class IntroScene extends Phaser.Scene {
         localStorage.setItem('yinghe_intro_seen', '1');
 
         // 暖金淡出 → 决定去向：从菜单的"开始游戏"进来播完直接进HubScene；从"🎬观看"进来则回MenuScene
-        const nextScene = (this.init && this.init.data && this.init.data.next) || 'MenuScene';
         this.cameras.main.fadeOut(600, 90, 26, 10);
         this.time.delayedCall(600, () => {
-            this.scene.start(nextScene);
+            console.log('[Intro] 跳转到场景:', this.nextScene);
+            this.scene.start(this.nextScene);
         });
     }
 }
