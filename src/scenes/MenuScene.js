@@ -231,9 +231,37 @@ class MenuScene extends Phaser.Scene {
             this.showAboutPanel();
         });
 
+        // 结局画廊按钮
+        const galleryBtnY = aboutBtnY + btnSpacing;
+        const galleryBtnBg = createBtnBg(galleryBtnY);
+        const galleryBtn = this.add.text(btnCenterX, galleryBtnY, '🏆 结局画廊', btnTextStyle)
+            .setOrigin(0.5).setDepth(10).setInteractive({ useHandCursor: true });
+
+        galleryBtn.on('pointerover', () => {
+            galleryBtnBg.clear();
+            galleryBtnBg.fillStyle(0xd4a574, 0.3);
+            galleryBtnBg.fillRoundedRect(btnCenterX - btnWidth/2, galleryBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            galleryBtnBg.lineStyle(3, 0xd4a574, 1);
+            galleryBtnBg.strokeRoundedRect(btnCenterX - btnWidth/2, galleryBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            galleryBtn.setStyle({ fill: '#ffd93d' });
+        });
+        galleryBtn.on('pointerout', () => {
+            galleryBtnBg.clear();
+            galleryBtnBg.fillStyle(btnBgColor, 0.9);
+            galleryBtnBg.fillRoundedRect(btnCenterX - btnWidth/2, galleryBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            galleryBtnBg.lineStyle(2, btnBorderColor, 0.8);
+            galleryBtnBg.strokeRoundedRect(btnCenterX - btnWidth/2, galleryBtnY - btnHeight/2, btnWidth, btnHeight, 10);
+            galleryBtn.setStyle({ fill: '#ffffff' });
+        });
+        galleryBtn.on('pointerdown', () => {
+            window.audioManager?.init();
+            window.audioManager?.uiClick();
+            this.showGalleryPanel();
+        });
+
         // 重新开始引导按钮（仅当引导未完成时显示）
         if (window.tutorialSystem?.isActive()) {
-            const tutorialBtnY = aboutBtnY + btnSpacing;
+            const tutorialBtnY = galleryBtnY + btnSpacing;
             const tutorialBtnBg = createBtnBg(tutorialBtnY);
             const tutorialBtn = this.add.text(btnCenterX, tutorialBtnY, '🔄 重新开始引导', {
                 ...btnTextStyle, fontSize: '18px', fill: '#d4a574'
@@ -431,6 +459,151 @@ class MenuScene extends Phaser.Scene {
         }).setInteractive({ useHandCursor: true });
         closeBtn.on('pointerdown', () => this.aboutPanel.setVisible(false));
         this.aboutPanel.add(closeBtn);
+    }
+
+    // ======== 结局画廊面板 ========
+    showGalleryPanel() {
+        if (this.galleryPanel) { this.galleryPanel.setVisible(!this.galleryPanel.visible); return; }
+        if (typeof ENDING_METADATA === 'undefined') {
+            console.warn('[Menu] ENDING_METADATA 未定义，画廊不可用');
+            return;
+        }
+
+        const { width, height } = this.cameras.main;
+        this.galleryPanel = this.add.container(0, 0).setDepth(100);
+
+        // 遮罩
+        const overlay = this.add.graphics();
+        overlay.fillStyle(0x000000, 0.78);
+        overlay.fillRect(0, 0, width, height);
+        overlay.setInteractive(new Phaser.Geom.Rectangle(0, 0, width, height), Phaser.Geom.Rectangle.Contains);
+        this.galleryPanel.add(overlay);
+
+        // 面板
+        const pw = 820, ph = 460;
+        const px = (width - pw) / 2, py = (height - ph) / 2;
+        const bg = this.add.graphics();
+        bg.fillStyle(0x0a0a1e, 0.97);
+        bg.fillRoundedRect(px, py, pw, ph, 12);
+        bg.lineStyle(2, 0xd4a574, 0.9);
+        bg.strokeRoundedRect(px, py, pw, ph, 12);
+        this.galleryPanel.add(bg);
+
+        // 标题
+        this.galleryPanel.add(this.add.text(width / 2, py + 26, '🏆 结局画廊 · 8种命运', {
+            fontSize: '20px', fill: '#d4a574', fontFamily: 'Microsoft YaHei', fontStyle: 'bold'
+        }).setOrigin(0.5));
+        this.galleryPanel.add(this.add.text(width / 2, py + 50, '点击任意结局即可预览其画面', {
+            fontSize: '11px', fill: '#888899', fontFamily: 'Microsoft YaHei', fontStyle: 'italic'
+        }).setOrigin(0.5));
+
+        // 8种结局卡片（2列4行）
+        const endingIds = ['balance', 'secret', 'governor', 'merchant', 'miner', 'gray', 'collapse', 'unfinished'];
+        const cardW = 360, cardH = 80, gap = 10;
+        const cols = 2;
+        const gridStartX = px + (pw - (cardW * cols + gap * (cols - 1))) / 2;
+        const gridStartY = py + 70;
+
+        endingIds.forEach((id, idx) => {
+            const meta = ENDING_METADATA[id];
+            const col = idx % cols;
+            const row = Math.floor(idx / cols);
+            const cx = gridStartX + col * (cardW + gap);
+            const cy = gridStartY + row * (cardH + gap);
+            this._createGalleryCard(cx, cy, cardW, cardH, meta);
+        });
+
+        // 关闭按钮
+        const closeBtn = this.add.text(px + pw - 30, py + 8, '✕', {
+            fontSize: '20px', fill: '#ff6b35', fontFamily: 'Microsoft YaHei'
+        }).setInteractive({ useHandCursor: true });
+        closeBtn.on('pointerdown', () => this.galleryPanel.setVisible(false));
+        this.galleryPanel.add(closeBtn);
+    }
+
+    _createGalleryCard(x, y, w, h, meta) {
+        const palette = meta.palette;
+        const cardBg = this.add.graphics();
+        cardBg.fillStyle(palette.bgTop, 0.85);
+        cardBg.fillRoundedRect(x, y, w, h, 8);
+        cardBg.lineStyle(2, palette.primary, 0.85);
+        cardBg.strokeRoundedRect(x, y, w, h, 8);
+        cardBg.lineStyle(1, palette.glow, 0.3);
+        cardBg.strokeRoundedRect(x - 2, y - 2, w + 4, h + 4, 9);
+        this.galleryPanel.add(cardBg);
+
+        // 左侧色块（图标背景）
+        const iconBg = this.add.graphics();
+        iconBg.fillStyle(palette.primary, 0.6);
+        iconBg.fillRoundedRect(x + 8, y + 8, 64, h - 16, 6);
+        iconBg.lineStyle(2, palette.glow, 0.6);
+        iconBg.strokeRoundedRect(x + 8, y + 8, 64, h - 16, 6);
+        this.galleryPanel.add(iconBg);
+
+        // 图标
+        this.galleryPanel.add(this.add.text(x + 40, y + h / 2, meta.icon, {
+            fontSize: '36px', fontFamily: 'Microsoft YaHei'
+        }).setOrigin(0.5));
+
+        // 标题
+        this.galleryPanel.add(this.add.text(x + 84, y + 16, meta.title, {
+            fontSize: '15px', fill: '#' + palette.secondary.toString(16).padStart(6, '0'),
+            fontFamily: 'Microsoft YaHei', fontStyle: 'bold'
+        }));
+        // 副标题
+        this.galleryPanel.add(this.add.text(x + 84, y + 36, meta.subtitle, {
+            fontSize: '9px', fill: '#' + palette.primary.toString(16).padStart(6, '0'),
+            fontFamily: 'Microsoft YaHei', fontStyle: 'italic'
+        }));
+        // 短描述
+        this.galleryPanel.add(this.add.text(x + 84, y + 50, meta.shortDesc, {
+            fontSize: '10px', fill: '#ccccdd',
+            fontFamily: 'Microsoft YaHei', wordWrap: { width: w - 100 }
+        }));
+
+        // 整张卡片可点击
+        const hit = this.add.rectangle(x + w / 2, y + h / 2, w, h, 0x000000, 0)
+            .setInteractive({ useHandCursor: true });
+        this.galleryPanel.add(hit);
+
+        hit.on('pointerover', () => {
+            cardBg.clear();
+            cardBg.fillStyle(palette.primary, 0.4);
+            cardBg.fillRoundedRect(x, y, w, h, 8);
+            cardBg.lineStyle(2, palette.glow, 1);
+            cardBg.strokeRoundedRect(x, y, w, h, 8);
+            cardBg.lineStyle(1, palette.glow, 0.6);
+            cardBg.strokeRoundedRect(x - 2, y - 2, w + 4, h + 4, 9);
+        });
+        hit.on('pointerout', () => {
+            cardBg.clear();
+            cardBg.fillStyle(palette.bgTop, 0.85);
+            cardBg.fillRoundedRect(x, y, w, h, 8);
+            cardBg.lineStyle(2, palette.primary, 0.85);
+            cardBg.strokeRoundedRect(x, y, w, h, 8);
+            cardBg.lineStyle(1, palette.glow, 0.3);
+            cardBg.strokeRoundedRect(x - 2, y - 2, w + 4, h + 4, 9);
+        });
+        hit.on('pointerdown', () => {
+            window.audioManager?.uiClick();
+            this.cameras.main.fadeOut(500, 10, 10, 26);
+            this.time.delayedCall(500, () => {
+                // 通过 EndingScene 直接展示该结局（fromGallery 标记）
+                this.scene.start('EndingScene', {
+                    ending: {
+                        id: meta.id,
+                        title: meta.title,
+                        description: meta.description
+                    },
+                    gameStats: {
+                        merchant: 50, miner: 50, governor: 50, moral: 50,
+                        decisions: 0, dialogues: 0, timeStr: '00:00',
+                        isSample: true
+                    },
+                    fromGallery: true
+                });
+            });
+        });
     }
 
     createStarfield() {

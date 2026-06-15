@@ -21,7 +21,8 @@ const config = {
         GovernorScene,
         MiningScene,
         PortScene,
-        BlackMarketScene
+        BlackMarketScene,
+        EndingScene
     ],
     physics: {
         default: 'arcade',
@@ -33,6 +34,7 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+window.game = game;  // 暴露给结局系统等使用
 
 // ---- 全局状态（简单RPG, 无回合/无复杂经济） ----
 window.GAME_STATE = {
@@ -104,3 +106,82 @@ game.events.on('ready', () => {
 window.addEventListener('beforeunload', () => {
     window.saveManager?.save();
 });
+
+// ---- 重置游戏状态（结局画面"再来一次"使用） ----
+function resetGameState() {
+    // 重置玩家
+    window.GAME_STATE.player = {
+        name: '谈判官',
+        credits: 500,
+        moral: 50
+    };
+    // 重置三方满意度
+    window.GAME_STATE.factionSatisfaction = {
+        merchant: 50,
+        miner: 50,
+        governor: 50
+    };
+    // 重置 flag
+    window.GAME_STATE.flags = {
+        blackMarketUnlocked: false,
+        metGovernor: false,
+        talkedToMiner: false,
+        talkedToMerchant: false,
+        channelBroken: false,
+        channelFixed: false,
+        minerStrike: false,
+        merchantBlockade: false,
+        metJiuJie: false,
+        secretActivated: false
+    };
+    // 重置经济
+    window.GAME_STATE.economyStatus = {
+        gdp: 1000,
+        inflation: '2.0%',
+        tradeBalance: '+120',
+        stability: '稳定'
+    };
+    // 重置关系系统
+    if (window.GAME_STATE.relationships?.reset) {
+        window.GAME_STATE.relationships.reset();
+    } else if (window.GAME_STATE.relationships) {
+        if (window.GAME_STATE.relationships.intimacy) {
+            for (const k of Object.keys(window.GAME_STATE.relationships.intimacy)) {
+                window.GAME_STATE.relationships.intimacy[k] = 0;
+            }
+        }
+        if (window.GAME_STATE.relationships.interactions) {
+            for (const k of Object.keys(window.GAME_STATE.relationships.interactions)) {
+                window.GAME_STATE.relationships.interactions[k] = 0;
+            }
+        }
+    }
+    // 重置剧情系统
+    if (window.GAME_STATE.story) {
+        const s = window.GAME_STATE.story;
+        s.mainQuest = '初到荧河';
+        s.stage = 0;
+        s.maxStage = 10;
+        s.keyDecisions = [];
+        s._decisionsMade = {};
+        s.events = [];
+        s._leadersTalkedTo = { governor: false, merchant: false, miner: false };
+        s._decision1Triggered = false;
+        s._decision2Triggered = false;
+        s._decision3Triggered = false;
+        s._decision1Locked = false;
+        s._decision2Locked = false;
+        s._decision3Locked = false;
+        s._channelHintTriggered = false;
+        s.endingTriggered = false;
+        s.startTime = Date.now();
+    }
+    // 重置对话历史
+    if (window.GAME_STATE.dialogue?.conversationHistory) {
+        window.GAME_STATE.dialogue.conversationHistory = {};
+    }
+    // 重置当前场景
+    window.GAME_STATE.currentScene = 'MenuScene';
+    console.log('[Game] 游戏状态已重置');
+}
+window.resetGameState = resetGameState;

@@ -123,6 +123,11 @@ class SaveManager {
         console.log('[Save] 存档已删除');
     }
 
+    // ---- 清空存档（deleteSave 的别名） ----
+    clear() {
+        return this.deleteSave();
+    }
+
     // ---- 启动自动存档 ----
     startAutoSave() {
         this.stopAutoSave();

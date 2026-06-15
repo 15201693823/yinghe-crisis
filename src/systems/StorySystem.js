@@ -15,13 +15,17 @@ class StorySystem {
 
         // 剧情事件列表
         this.events = [];
-        
+
         // 首脑对话记录（用于判断是否与三方首脑都对话过）
         this._leadersTalkedTo = {
             governor: false,
             merchant: false,
             miner: false
         };
+
+        // 结局相关状态
+        this.endingTriggered = false;  // 防止重复触发
+        this.startTime = Date.now();   // 游戏开始时间（用于统计时长）
     }
 
     // ---- 玩家完成一次关键对话后调用 ----
@@ -302,7 +306,14 @@ class StorySystem {
         
         // 确保满意度在有效范围内
         this._clampSatisfaction();
-        
+
+        // 决策3 完成后 → 自动触发结局
+        if (decisionId === 'decision_3' && !this.endingTriggered) {
+            this.endingTriggered = true;
+            // 延迟 1.5s 让玩家看到决策反馈
+            setTimeout(() => this.triggerEnding(), 1500);
+        }
+
         return { success: true, message: result };
     }
     
@@ -471,6 +482,72 @@ class StorySystem {
         }
 
         return null; // 还没到结局
+    }
+
+    // ---- 触发结局画面 ----
+    triggerEnding() {
+        const ending = this.checkEnding();
+        if (!ending) {
+            console.warn('[Story] 决策3完成但未匹配到结局，使用默认未竟结局');
+            // 兜底：使用未竟结局
+            this._startEndingScene({
+                id: 'unfinished',
+                title: '未竟之事',
+                description: '荧河的局势依然紧张。你已经尽力了，但三方矛盾的根源太深。\n\n你的任期结束了，联盟会派新的谈判官来。\n\n荧河的故事还会继续。'
+            });
+            return;
+        }
+        console.log(`[Story] 触发结局: ${ending.id} - ${ending.title}`);
+        this._startEndingScene(ending);
+    }
+
+    // ---- 启动 EndingScene（场景切换逻辑统一封装） ----
+    _startEndingScene(ending) {
+        const game = window.game || (window.Phaser && Phaser.GAMES && Phaser.GAMES[0]);
+        if (!game) {
+            console.error('[Story] 找不到 game 实例，无法跳转 EndingScene');
+            return;
+        }
+        const stats = this.getGameStats();
+        // 场景淡出再切换
+        if (game.scene && game.scene.getScene) {
+            // 强制从当前场景切换
+            const currentScenes = game.scene.scenes.filter(s => s && s.scene && s.scene.isActive && s.scene.isActive());
+            // 停止可能仍在运行的所有游戏场景
+            ['HubScene', 'GovernorScene', 'MiningScene', 'PortScene', 'BlackMarketScene'].forEach(key => {
+                try { game.scene.stop(key); } catch (e) { /* ignore */ }
+            });
+        }
+        game.scene.start('EndingScene', { ending, gameStats: stats });
+    }
+
+    // ---- 获取结局画面所需的统计信息 ----
+    getGameStats() {
+        const sat = window.GAME_STATE.factionSatisfaction || {};
+        const player = window.GAME_STATE.player || {};
+        // 统计对话数
+        let dialogueCount = 0;
+        if (window.GAME_STATE.dialogue?.conversationHistory) {
+            const hist = window.GAME_STATE.dialogue.conversationHistory;
+            for (const npcId in hist) {
+                if (Array.isArray(hist[npcId])) dialogueCount += hist[npcId].length;
+            }
+        }
+        // 计算游戏时长
+        const elapsed = Math.floor((Date.now() - (this.startTime || Date.now())) / 1000);
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = elapsed % 60;
+        const timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        return {
+            merchant: sat.merchant ?? 50,
+            miner: sat.miner ?? 50,
+            governor: sat.governor ?? 50,
+            moral: player.moral ?? 50,
+            decisions: this.keyDecisions.length,
+            dialogues: dialogueCount,
+            timeStr: timeStr,
+            isSample: false
+        };
     }
 
     // ---- 获取剧情摘要 ----
