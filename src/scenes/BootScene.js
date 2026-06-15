@@ -119,15 +119,8 @@ class BootScene extends Phaser.Scene {
         }
 
         this.time.delayedCall(400, () => {
-            // 检查是否需要播放开场动画
-            const skipIntro = localStorage.getItem('yinghe_intro_seen') === '1';
-            if (skipIntro) {
-                console.log('[Boot] 已跳过开场，直接进入菜单');
-                this.scene.start('MenuScene');
-            } else {
-                console.log('[Boot] 启动开场动画');
-                this.scene.start('IntroScene');
-            }
+            console.log('[Boot] 进入主菜单');
+            this.scene.start('MenuScene');
         });
     }
 }
@@ -208,7 +201,7 @@ window.createEnhancedDialogue = function(scene, inputId, accentColor) {
     }).setDepth(201).setVisible(false);
     container.add(scene.dlgTyping);
 
-    // ---- 输入区域 ----
+    // ---- 输入区域（原生HTML overlay，不依赖Phaser DOM插件） ----
     const inputY = panelY + panelH - 50;
     const inputBg = scene.add.graphics();
     inputBg.fillStyle(0x0d0d24, 0.95);
@@ -217,47 +210,120 @@ window.createEnhancedDialogue = function(scene, inputId, accentColor) {
     inputBg.strokeRoundedRect(chatX - 4, inputY, chatW + 4, 36, 8);
     container.add(inputBg);
 
-    // 创建输入框(HTML元素,清晰可见)
-    const inputEl = document.createElement('input');
-    inputEl.type = 'text';
-    inputEl.id = inputId;
-    inputEl.placeholder = '✏️ 输入消息,回车发送...';
-    inputEl.autocomplete = 'off';
-    inputEl.style.cssText = [
+    // 创建原生 HTML 输入框（覆盖在 canvas 上方，所有设备都能输入）
+    const accentHex = '#' + accentColor.toString(16).padStart(6, '0');
+    const inputWrapper = document.createElement('div');
+    inputWrapper.id = 'dlg-wrapper-' + inputId;
+    inputWrapper.style.cssText = 'position:fixed; z-index:10000; display:none; pointer-events:auto;';
+
+    const nativeInput = document.createElement('input');
+    nativeInput.type = 'text';
+    nativeInput.id = inputId;
+    nativeInput.placeholder = '✏️ 输入消息,回车发送...';
+    nativeInput.autocomplete = 'off';
+    nativeInput.style.cssText = [
         'box-sizing:border-box',
-        'width:' + (chatW - 90) + 'px',
-        'height:32px',
-        'padding:0 8px',
+        'width:' + (chatW - 100) + 'px',
+        'height:34px',
+        'padding:0 10px',
         'background:#1a1a3e',
-        'border:1px solid #' + accentColor.toString(16).padStart(6, '0'),
-        'border-radius:4px',
+        'border:2px solid ' + accentHex,
+        'border-radius:6px',
         'color:#ffffff',
-        'font-size:13px',
+        'font-size:14px',
         'font-family:Microsoft YaHei',
-        'outline:none'
+        'outline:none',
+        'vertical-align:middle'
     ].join(';');
 
-    // 聚焦时高亮
-    inputEl.addEventListener('focus', () => {
-        inputEl.style.boxShadow = '0 0 8px #' + accentColor.toString(16).padStart(6, '0');
+    const nativeSendBtn = document.createElement('button');
+    nativeSendBtn.textContent = '▶ 发送';
+    nativeSendBtn.style.cssText = [
+        'height:34px',
+        'padding:0 16px',
+        'background:' + accentHex,
+        'color:#0a0a1a',
+        'border:none',
+        'border-radius:6px',
+        'font-weight:bold',
+        'font-size:14px',
+        'font-family:Microsoft YaHei',
+        'cursor:pointer',
+        'vertical-align:middle',
+        'margin-left:6px'
+    ].join(';');
+
+    inputWrapper.appendChild(nativeInput);
+    inputWrapper.appendChild(nativeSendBtn);
+    document.body.appendChild(inputWrapper);
+
+    // 保存引用到 scene 上
+    scene._nativeInputWrapper = inputWrapper;
+    scene._nativeInputEl = nativeInput;
+
+    // 定位函数：根据 canvas 位置计算输入框的屏幕坐标
+    const positionInput = () => {
+        const canvas = game.canvas;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = rect.width / 960;
+        const scaleY = rect.height / 540;
+        const sx = rect.left + (chatX + 4) * scaleX;
+        const sy = rect.top + (inputY + 2) * scaleY;
+        inputWrapper.style.left = sx + 'px';
+        inputWrapper.style.top = sy + 'px';
+    };
+
+    // 显示/隐藏联动
+    const origSetVisible = container.setVisible.bind(container);
+    container.setVisible = function(visible) {
+        origSetVisible(visible);
+        if (visible) {
+            inputWrapper.style.display = 'block';
+            positionInput();
+            setTimeout(() => nativeInput.focus(), 100);
+        } else {
+            inputWrapper.style.display = 'none';
+            nativeInput.value = '';
+        }
+    };
+
+    // 窗口大小变化时重新定位
+    window.addEventListener('resize', positionInput);
+
+    // 发送按钮点击
+    nativeSendBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        scene.handleSendDialogue?.();
     });
-    inputEl.addEventListener('blur', () => {
-        inputEl.style.boxShadow = 'none';
+    // 回车发送
+    nativeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            scene.handleSendDialogue?.();
+        }
+        // 防止 Phaser 捕获按键
+        e.stopPropagation();
+    });
+    // 阻止输入框里的按键冒泡到 Phaser
+    nativeInput.addEventListener('keyup', (e) => e.stopPropagation());
+    nativeInput.addEventListener('keypress', (e) => e.stopPropagation());
+
+    // 场景切换时自动移除
+    scene.events.on('shutdown', () => {
+        inputWrapper.remove();
+        window.removeEventListener('resize', positionInput);
     });
 
-    scene.dlgInput = scene.add.dom(chatX + 4, inputY + 18, inputEl);
-    scene.dlgInput.setDepth(250);
-    container.add(scene.dlgInput);
-
-    // 发送按钮 - 鼠标点击
+    // Phaser 内的发送按钮（保留，作为备选）
     const sendBtn = scene.add.text(chatX + chatW - 72, inputY + 4, '▶ 发送', {
         fontSize: '13px', fill: '#0a0a1a', fontFamily: 'Microsoft YaHei', fontStyle: 'bold',
-        backgroundColor: '#' + accentColor.toString(16).padStart(6, '0'),
+        backgroundColor: accentHex,
         padding: { x: 14, y: 8 }
     }).setInteractive({ useHandCursor: true }).setDepth(251);
     container.add(sendBtn);
 
-    // 添加 touchstart 支持到发送按钮
+    sendBtn.on('pointerdown', () => scene.handleSendDialogue?.());
     sendBtn.on('touchstart', (pointer) => {
         pointer.event.preventDefault();
         scene.handleSendDialogue?.();
@@ -278,15 +344,13 @@ window.createEnhancedDialogue = function(scene, inputId, accentColor) {
             backgroundColor: '#1a1a3e', padding: { x: 8, y: 4 }
         }).setInteractive({ useHandCursor: true }).setDepth(201);
         btn.on('pointerdown', () => {
-            const inputEl = document.getElementById(inputId);
-            if (inputEl) { inputEl.value = action; }
+            nativeInput.value = action;
             scene.handleSendDialogue?.();
         });
         // 添加 touchstart 支持
         btn.on('touchstart', (pointer) => {
             pointer.event.preventDefault();
-            const inputEl = document.getElementById(inputId);
-            if (inputEl) { inputEl.value = action; }
+            nativeInput.value = action;
             scene.handleSendDialogue?.();
         });
         container.add(btn);

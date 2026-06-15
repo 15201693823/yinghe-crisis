@@ -125,11 +125,13 @@ class StorySystem {
         }
     }
     
-    // ---- 检查是否与三方首脑都对话过 ----
+    // ---- 检查是否与足够多的首脑对话过（2个即可触发决策1） ----
     _allLeadersTalked() {
-        return this._leadersTalkedTo.governor && 
-               this._leadersTalkedTo.merchant && 
-               this._leadersTalkedTo.miner;
+        let count = 0;
+        if (this._leadersTalkedTo.governor) count++;
+        if (this._leadersTalkedTo.merchant) count++;
+        if (this._leadersTalkedTo.miner) count++;
+        return count >= 2;
     }
 
     // ---- 获取可用决策 ----
@@ -237,18 +239,21 @@ class StorySystem {
                 'lower_tariff': () => {
                     window.GAME_STATE.factionSatisfaction.merchant += 10;
                     window.GAME_STATE.factionSatisfaction.governor -= 5;
-                    return '你决定调降关税以救济商人。贸易成本降低，但总督府的财政压力增加了。';
+                    this.fixChannel();
+                    return '你决定调降关税以救济商人。贸易成本降低，但总督府的财政压力增加了。航道也逐步修复。';
                 },
                 'subsidy_miner': () => {
                     window.GAME_STATE.factionSatisfaction.miner += 10;
                     window.GAME_STATE.factionSatisfaction.governor -= 5;
-                    return '你决定增加矿工补贴。矿工们的生活得到保障，但总督府需要削减其他开支。';
+                    this.fixChannel();
+                    return '你决定增加矿工补贴。矿工们的生活得到保障，但总督府需要削减其他开支。航道也逐步修复。';
                 },
                 'tax_hard': () => {
                     window.GAME_STATE.factionSatisfaction.governor += 10;
                     window.GAME_STATE.factionSatisfaction.merchant -= 5;
                     window.GAME_STATE.factionSatisfaction.miner -= 5;
-                    return '你决定加税以加强行政能力。总督府的管控加强了，但各方怨声载道。';
+                    this.fixChannel();
+                    return '你决定加税以加强行政能力。总督府的管控加强了，但各方怨声载道。航道也逐步修复。';
                 }
             },
             // 决策3效果
